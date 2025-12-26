@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Konsole - Vanilla JS Example</title>
+    <style>
+      :root {
+        --bg-primary: #0f0f23;
+        --bg-secondary: #1a1a2e;
+        --bg-card: #16213e;
+        --accent: #667eea;
+        --accent-light: #764ba2;
+        --text-primary: #e4e4e7;
+        --text-secondary: #a1a1aa;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --error: #ef4444;
+        --info: #3b82f6;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        min-height: 100vh;
+        padding: 2rem;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 3rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        background: linear-gradient(135deg, var(--accent), var(--accent-light));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+      }
+
+      .subtitle {
+        color: var(--text-secondary);
+        font-size: 1rem;
+      }
+
+      .panel {
+        background: var(--bg-card);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+      }
+
+      .panel h2 {
+        font-size: 1rem;
+        color: var(--accent);
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .button-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.75rem;
+      }
+
+      button {
+        font-family: inherit;
+        padding: 0.75rem 1rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      .btn-log {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--text-secondary);
+      }
+
+      .btn-info {
+        background: var(--info);
+        color: white;
+      }
+
+      .btn-warn {
+        background: var(--warning);
+        color: black;
+      }
+
+      .btn-error {
+        background: var(--error);
+        color: white;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-light));
+        color: white;
+      }
+
+      .btn-success {
+        background: var(--success);
+        color: white;
+      }
+
+      .namespace-select {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .namespace-btn {
+        padding: 0.5rem 1rem;
+        background: var(--bg-secondary);
+        border: 2px solid transparent;
+        color: var(--text-secondary);
+        border-radius: 20px;
+        font-size: 0.75rem;
+      }
+
+      .namespace-btn.active {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .log-display {
+        background: var(--bg-primary);
+        border-radius: 8px;
+        padding: 1rem;
+        font-size: 0.8rem;
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .log-entry {
+        padding: 0.5rem;
+        border-radius: 4px;
+        margin-bottom: 0.25rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+      }
+
+      .log-entry .time {
+        color: var(--text-secondary);
+        font-size: 0.7rem;
+        white-space: nowrap;
+      }
+
+      .log-entry .namespace {
+        font-weight: 600;
+        min-width: 60px;
+      }
+
+      .log-entry.log {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .log-entry.info {
+        background: rgba(59, 130, 246, 0.15);
+        border-left: 3px solid var(--info);
+      }
+
+      .log-entry.warn {
+        background: rgba(245, 158, 11, 0.15);
+        border-left: 3px solid var(--warning);
+      }
+
+      .log-entry.error {
+        background: rgba(239, 68, 68, 0.15);
+        border-left: 3px solid var(--error);
+      }
+
+      .status-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+      }
+
+      .status-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--success);
+      }
+
+      .status-dot.off {
+        background: var(--error);
+      }
+
+      .instructions {
+        background: rgba(102, 126, 234, 0.1);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1.5rem;
+        font-size: 0.85rem;
+        line-height: 1.6;
+      }
+
+      .instructions code {
+        background: var(--bg-primary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>⌨️ Konsole</h1>
+        <p class="subtitle">Vanilla JavaScript Example</p>
+      </header>
+
+      <div class="panel">
+        <h2>Select Namespace</h2>
+        <div class="namespace-select" id="namespaceSelect">
+          <button class="namespace-btn active" data-namespace="App">App</button>
+          <button class="namespace-btn" data-namespace="Auth">Auth</button>
+          <button class="namespace-btn" data-namespace="API">API</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Log Actions</h2>
+        <div class="button-grid">
+          <button class="btn-log" onclick="logMessage('log')">Log</button>
+          <button class="btn-info" onclick="logMessage('info')">Info</button>
+          <button class="btn-warn" onclick="logMessage('warn')">Warn</button>
+          <button class="btn-error" onclick="logMessage('error')">Error</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>View Controls</h2>
+        <div class="button-grid">
+          <button class="btn-primary" onclick="viewLogs()">View Logs</button>
+          <button class="btn-success" onclick="toggleGlobal()">Toggle Print</button>
+          <button class="btn-log" onclick="clearLogs()">Clear Logs</button>
+          <button class="btn-log" onclick="showNamespaces()">List Namespaces</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Live Log Display</h2>
+        <div class="log-display" id="logDisplay">
+          <div class="log-entry log">
+            <span class="time">--:--:--</span>
+            <span class="namespace">[System]</span>
+            <span>Ready. Start logging!</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-item">
+          <span class="status-dot" id="printStatus"></span>
+          <span>Global Print: <strong id="printStatusText">OFF</strong></span>
+        </div>
+        <div class="status-item">
+          <span>Active: <strong id="activeNamespace">App</strong></span>
+        </div>
+        <div class="status-item">
+          <span>Total Logs: <strong id="logCount">0</strong></span>
+        </div>
+      </div>
+
+      <div class="instructions">
+        <strong>💡 Tip:</strong> Open your browser's developer console (<code>F12</code> or <code>Cmd+Option+I</code>) 
+        and type <code>__Konsole.getLogger('App').viewLogs()</code> to view logs there!
+      </div>
+    </div>
+
+    <script type="module">
+      import { Konsole } from "konsole-logger";
+
+      // Create loggers for different namespaces
+      const appLogger = new Konsole({ namespace: "App", criteria: false });
+      const authLogger = new Konsole({ namespace: "Auth", criteria: false });
+      const apiLogger = new Konsole({ namespace: "API", criteria: false });
+
+      // Expose to window for debugging
+      Konsole.exposeToWindow();
+
+      let activeNamespace = "App";
+      let globalPrintEnabled = false;
+      let messageCount = 0;
+
+      const messages = {
+        log: [
+          "User clicked button",
+          "Page loaded successfully",
+          "Cache updated",
+          "Settings saved",
+          "Navigation complete",
+        ],
+        info: [
+          "Connected to server",
+          "Session initialized",
+          "Data synchronized",
+          "Feature flag enabled",
+          "Config loaded",
+        ],
+        warn: [
+          "Slow network detected",
+          "Cache nearly full",
+          "Deprecated API used",
+          "Missing optional field",
+          "Retry attempt #2",
+        ],
+        error: [
+          "Failed to fetch data",
+          "Authentication failed",
+          "Network timeout",
+          "Invalid response format",
+          "Permission denied",
+        ],
+      };
+
+      function getRandomMessage(type) {
+        const msgs = messages[type];
+        return msgs[Math.floor(Math.random() * msgs.length)];
+      }
+
+      function getLogger() {
+        return Konsole.getLogger(activeNamespace);
+      }
+
+      function formatTime(date) {
+        return date.toLocaleTimeString("en-US", { hour12: false });
+      }
+
+      function addToDisplay(type, namespace, message) {
+        const display = document.getElementById("logDisplay");
+        const entry = document.createElement("div");
+        entry.className = `log-entry ${type}`;
+        entry.innerHTML = `
+          <span class="time">${formatTime(new Date())}</span>
+          <span class="namespace">[${namespace}]</span>
+          <span>${message}</span>
+        `;
+        display.appendChild(entry);
+        display.scrollTop = display.scrollHeight;
+
+        messageCount++;
+        document.getElementById("logCount").textContent = messageCount;
+      }
+
+      window.logMessage = function (type) {
+        const logger = getLogger();
+        const message = getRandomMessage(type);
+        logger[type](message);
+        addToDisplay(type, activeNamespace, message);
+      };
+
+      window.viewLogs = function () {
+        const logger = getLogger();
+        console.log(`\n📋 Viewing logs for [${activeNamespace}]:`);
+        logger.viewLogs();
+      };
+
+      window.toggleGlobal = function () {
+        globalPrintEnabled = !globalPrintEnabled;
+        Konsole.enableGlobalPrint(globalPrintEnabled);
+
+        const dot = document.getElementById("printStatus");
+        const text = document.getElementById("printStatusText");
+
+        dot.className = globalPrintEnabled ? "status-dot" : "status-dot off";
+        text.textContent = globalPrintEnabled ? "ON" : "OFF";
+
+        addToDisplay(
+          "info",
+          "System",
+          `Global print ${globalPrintEnabled ? "enabled" : "disabled"}`
+        );
+      };
+
+      window.clearLogs = function () {
+        const logger = getLogger();
+        logger.clearLogs();
+        addToDisplay("info", "System", `Cleared logs for [${activeNamespace}]`);
+      };
+
+      window.showNamespaces = function () {
+        const namespaces = Konsole.getNamespaces();
+        console.log("📁 Registered namespaces:", namespaces);
+        addToDisplay("info", "System", `Namespaces: ${namespaces.join(", ")}`);
+      };
+
+      // Namespace selection
+      document.querySelectorAll(".namespace-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".namespace-btn")
+            .forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          activeNamespace = btn.dataset.namespace;
+          document.getElementById("activeNamespace").textContent =
+            activeNamespace;
+        });
+      });
+    </script>
+  </body>
+</html>
+
+

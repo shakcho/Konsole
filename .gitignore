@@ -1,3 +1,13 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# VitePress
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
 # Logs
 logs
 *.log
@@ -6,11 +16,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +27,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local env files
+*.local
+
+# TypeScript cache
+*.tsbuildinfo

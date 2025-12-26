@@ -1,15 +1,58 @@
 {
-  "name": "konsole",
-  "private": true,
-  "version": "0.0.0",
+  "name": "konsole-logger",
+  "version": "1.0.0",
   "type": "module",
+  "description": "A lightweight, namespaced logging library for JavaScript/TypeScript with memory storage and conditional output",
+  "main": "./dist/konsole.umd.cjs",
+  "module": "./dist/konsole.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/konsole.js",
+      "require": "./dist/konsole.umd.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "prepublishOnly": "npm run build",
+    "example:vanilla": "npm run --prefix examples/vanilla-js dev",
+    "example:vanilla:install": "npm install --prefix examples/vanilla-js",
+    "example:vanilla:build": "npm run --prefix examples/vanilla-js build",
+    "example:react": "npm run --prefix examples/react dev",
+    "example:react:install": "npm install --prefix examples/react",
+    "example:react:build": "npm run --prefix examples/react build"
   },
+  "keywords": [
+    "logger",
+    "logging",
+    "console",
+    "debug",
+    "typescript",
+    "namespaced-logging"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "bugs": {
+    "url": ""
+  },
+  "homepage": "",
   "devDependencies": {
     "typescript": "^5.2.2",
-    "vite": "^5.0.8"
+    "vite": "^5.0.8",
+    "vite-plugin-dts": "^4.3.0",
+    "vitepress": "^1.5.0"
   }
 }
