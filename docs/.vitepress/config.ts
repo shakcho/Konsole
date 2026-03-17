@@ -3,7 +3,6 @@ import { defineConfig } from 'vitepress';
 export default defineConfig({
   title: 'Konsole',
   description: 'Structured, namespaced logging for browser and Node.js',
-  base: '/docs/',
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
