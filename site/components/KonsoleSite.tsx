@@ -419,7 +419,7 @@ export default function KonsoleSite() {
     <>
       {/* Top nav */}
       <nav style={s.topNav}>
-        <span style={s.topNavBrand}>Konsole</span>
+        <span style={s.topNavBrand}>konsole<span style={{ color: '#6366f1' }}>.ts</span></span>
         <div style={s.topNavLinks}>
           <a style={s.topNavLink} href={LINKS.docs} target="_blank" rel="noreferrer">Docs</a>
           <a style={s.topNavLink} href={LINKS.github} target="_blank" rel="noreferrer">GitHub</a>
@@ -437,6 +437,35 @@ export default function KonsoleSite() {
             and flexible transports.
           </p>
         </header>
+
+        {/* ── Installation ── */}
+        <section style={s.section}>
+          <h2 style={s.sectionTitle}>Installation</h2>
+          <div style={s.installGrid}>
+            {[
+              { label: 'npm',  cmd: 'npm install konsole-logger' },
+              { label: 'yarn', cmd: 'yarn add konsole-logger' },
+              { label: 'pnpm', cmd: 'pnpm add konsole-logger' },
+            ].map(({ label, cmd }) => (
+              <div
+                key={label}
+                style={s.installCard}
+                onMouseEnter={(e) => { const btn = e.currentTarget.querySelector('button'); if (btn) btn.style.opacity = '1'; }}
+                onMouseLeave={(e) => { const btn = e.currentTarget.querySelector('button'); if (btn) btn.style.opacity = '0'; }}
+              >
+                <span style={s.installLabel}>{label}</span>
+                <code style={s.installCmd}>{cmd}</code>
+                <button
+                  style={s.installCopy}
+                  onClick={() => { navigator.clipboard.writeText(cmd); }}
+                  aria-label={`Copy ${label} command`}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* ── Interactive Demo ── */}
         <section style={s.section}>
@@ -723,6 +752,13 @@ const s: Record<string, React.CSSProperties> = {
   headerBadge: { display: 'inline-block', fontSize: 12, fontWeight: 500, color: '#6366f1', background: '#eef2ff', padding: '4px 10px', borderRadius: 20, marginBottom: 16, letterSpacing: '0.02em' },
   title:       { fontSize: 28, fontWeight: 700, color: '#171717', marginBottom: 12, letterSpacing: '-0.02em' },
   subtitle:    { fontSize: 16, color: '#737373', lineHeight: 1.6, maxWidth: 520 },
+
+  // Installation
+  installGrid:  { display: 'flex', flexDirection: 'column', gap: 8 },
+  installCard:  { display: 'flex', alignItems: 'center', gap: 10, background: '#1e1e1e', borderRadius: 8, padding: '10px 14px', position: 'relative' },
+  installLabel: { fontFamily: 'var(--font-mono), monospace', fontSize: 11, fontWeight: 600, color: '#6366f1', minWidth: 36 },
+  installCmd:   { fontFamily: 'var(--font-mono), monospace', fontSize: 12, color: '#d4d4d4', flex: 1, whiteSpace: 'nowrap' },
+  installCopy:  { background: 'transparent', borderWidth: 0, color: '#525252', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', flexShrink: 0, opacity: 0, transition: 'opacity 0.15s' },
 
   // Section
   section:      { marginBottom: 48 },

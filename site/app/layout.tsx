@@ -14,10 +14,14 @@ const ibmPlexMono = IBM_Plex_Mono({
   variable: '--font-mono',
 });
 
+const siteUrl = 'https://konsole.saktichourasia.dev';
+const title = 'Konsole — Structured logging for browser & Node.js';
+const description = 'Zero-dependency, TypeScript-first logging library with six numeric log levels, child loggers, beautiful ANSI terminal output, browser DevTools styling, and flexible transports. Works in browser and Node.js.';
+
 export const metadata: Metadata = {
-  title: 'Konsole — Structured logging for browser & Node.js',
-  description:
-    'Konsole is a structured, namespaced logging library for JavaScript and TypeScript. Numeric log levels, child loggers, beautiful terminal output, and flexible transports.',
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
   keywords: [
     'pino',
     'pino alternative',
@@ -29,12 +33,24 @@ export const metadata: Metadata = {
     'log levels',
     'browser logging',
     'node logger',
+    'konsole',
+    'konsole-logger',
   ],
   authors: [{ name: 'Sakti Kumar Chourasia', url: 'https://saktichourasia.dev' }],
+  creator: 'Sakti Kumar Chourasia',
   openGraph: {
-    title: 'Konsole — Structured logging for browser & Node.js',
-    description:
-      'Konsole is a structured, namespaced logging library for JavaScript and TypeScript. Numeric log levels, child loggers, beautiful terminal output, and flexible transports.',
+    type: 'website',
+    url: siteUrl,
+    title,
+    description,
+    siteName: 'Konsole',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title,
+    description,
+    creator: '@shakcho',
   },
 };
 
