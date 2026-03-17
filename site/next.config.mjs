@@ -2,18 +2,6 @@ import webpack from 'next/dist/compiled/webpack/webpack-lib.js';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: '/docs',
-        destination: 'https://konsole-docs.vercel.app/docs/',
-      },
-      {
-        source: '/docs/:path*',
-        destination: 'https://konsole-docs.vercel.app/docs/:path*',
-      },
-    ];
-  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // konsole-logger keeps node:* as Rollup externals (for FileTransport/StreamTransport).

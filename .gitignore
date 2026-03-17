@@ -12,6 +12,7 @@ docs/.vitepress/.temp/
 # Next.js (site)
 site/.next/
 site/out/
+site/public/docs/
 
 # Vitest
 coverage/

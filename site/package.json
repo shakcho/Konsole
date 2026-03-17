@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "prebuild": "rm -rf public/docs && cd .. && npx vitepress build docs && mkdir -p site/public && cp -r docs/.vitepress/dist site/public/docs",
+    "build": "npm run prebuild && next build",
     "start": "next start"
   },
   "dependencies": {
