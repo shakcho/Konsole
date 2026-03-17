@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"../dist/konsole.js -> node:fs\":{\"id\":\"../dist/konsole.js -> node:fs\",\"files\":[\"static/chunks/_7592.js\"]}}"

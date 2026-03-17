@@ -1,18 +1,12 @@
 # Konsole Class
 
-The main logging class.
+The main logging class. Works in browser and Node.js.
 
 ## Constructor
 
 ```typescript
 new Konsole(options?: KonsoleOptions)
 ```
-
-### Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `options` | `KonsoleOptions` | Configuration options |
 
 ### Example
 
@@ -21,8 +15,9 @@ import { Konsole } from 'konsole-logger';
 
 const logger = new Konsole({
   namespace: 'MyApp',
-  criteria: true,
-  defaultBatchSize: 50,
+  level: 'info',
+  format: 'auto',
+  maxLogs: 5000,
 });
 ```
 
@@ -36,12 +31,10 @@ const logger = new Konsole({
 static getLogger(namespace?: string): Konsole
 ```
 
-Gets an existing logger by namespace, or creates a new one if it doesn't exist.
+Gets an existing logger by namespace. Creates a new one with a warning if the namespace is not found.
 
 **Parameters:**
-- `namespace` — The namespace to look up (default: `'Global'`)
-
-**Returns:** The `Konsole` instance for that namespace
+- `namespace` — Namespace to look up (default: `'Global'`)
 
 **Example:**
 ```typescript
@@ -56,14 +49,11 @@ const logger = Konsole.getLogger('Auth');
 static getNamespaces(): string[]
 ```
 
-Returns an array of all registered namespace names.
-
-**Returns:** Array of namespace strings
+Returns all registered namespace names.
 
 **Example:**
 ```typescript
-const namespaces = Konsole.getNamespaces();
-// ['Auth', 'API', 'UI']
+Konsole.getNamespaces(); // ['Auth', 'API', 'DB']
 ```
 
 ---
@@ -74,7 +64,7 @@ const namespaces = Konsole.getNamespaces();
 static exposeToWindow(): void
 ```
 
-Exposes Konsole to the browser window as `__Konsole` for debugging.
+Exposes a `__Konsole` debug handle on `window` for use in browser DevTools. No-op in Node.js.
 
 **Example:**
 ```typescript
@@ -82,6 +72,8 @@ Konsole.exposeToWindow();
 
 // In browser console:
 // __Konsole.getLogger('Auth').viewLogs()
+// __Konsole.listLoggers()
+// __Konsole.enableAll()
 ```
 
 ---
@@ -92,72 +84,54 @@ Konsole.exposeToWindow();
 static enableGlobalPrint(enabled: boolean): void
 ```
 
-Enables or disables global console output for all loggers.
-
-**Parameters:**
-- `enabled` — Whether to enable global printing
+When `true`, forces all loggers to produce output regardless of their individual `format` or `criteria` settings. Stored on `globalThis` — works in both environments.
 
 **Example:**
 ```typescript
 Konsole.enableGlobalPrint(true);  // All logs print
-Konsole.enableGlobalPrint(false); // Return to normal
+Konsole.enableGlobalPrint(false); // Restore normal rules
 ```
 
 ---
 
-## Instance Methods
-
-### log
+### addGlobalTransport
 
 ```typescript
-log(...args: unknown[]): void
+static addGlobalTransport(config: TransportConfig): void
 ```
 
-Logs a standard message.
-
-**Parameters:**
-- `args` — Values to log
+Adds an HTTP transport to every currently registered logger.
 
 **Example:**
 ```typescript
-logger.log('User action', { userId: 123 });
+Konsole.addGlobalTransport({
+  name: 'sentry',
+  url: 'https://sentry.io/api/123/store/',
+  filter: (entry) => entry.level === 'error',
+});
 ```
 
 ---
 
-### error
+## Instance Methods — Logging
+
+### trace
 
 ```typescript
-error(...args: unknown[]): void
+trace(...args: unknown[]): void
 ```
 
-Logs an error message.
-
-**Parameters:**
-- `args` — Values to log
-
-**Example:**
-```typescript
-logger.error('Failed to fetch', error);
-```
+Level 10. Extremely verbose; disabled by default at `level: 'debug'` and above.
 
 ---
 
-### warn
+### debug
 
 ```typescript
-warn(...args: unknown[]): void
+debug(...args: unknown[]): void
 ```
 
-Logs a warning message.
-
-**Parameters:**
-- `args` — Values to log
-
-**Example:**
-```typescript
-logger.warn('Deprecated API used');
-```
+Level 20. Developer-facing detail; hidden at `level: 'info'` and above.
 
 ---
 
@@ -167,36 +141,173 @@ logger.warn('Deprecated API used');
 info(...args: unknown[]): void
 ```
 
-Logs an info message.
+Level 30. General informational messages.
 
-**Parameters:**
-- `args` — Values to log
+---
 
-**Example:**
+### log
+
 ```typescript
-logger.info('Connected to server');
+log(...args: unknown[]): void
+```
+
+Alias for `info()`. Level 30.
+
+---
+
+### warn
+
+```typescript
+warn(...args: unknown[]): void
+```
+
+Level 40. Something unexpected but recoverable.
+
+---
+
+### error
+
+```typescript
+error(...args: unknown[]): void
+```
+
+Level 50. An operation failed. Written to `stderr` in Node.js.
+
+---
+
+### fatal
+
+```typescript
+fatal(...args: unknown[]): void
+```
+
+Level 60. Unrecoverable failure. Written to `stderr` in Node.js.
+
+---
+
+### Calling conventions
+
+All log methods accept four argument styles:
+
+```typescript
+// 1. Simple string
+logger.info('Server started');
+
+// 2. String + fields object (recommended)
+logger.info('Request received', { method: 'GET', path: '/users', ms: 42 });
+
+// 3. Object-first: object with msg key
+logger.info({ msg: 'Request received', method: 'GET', path: '/users' });
+
+// 4. Error — message extracted, error stored in fields.err
+logger.error(new Error('Connection refused'));
 ```
 
 ---
 
-### viewLogs
+## Instance Methods — Child Loggers
+
+### child
 
 ```typescript
-viewLogs(batchSize?: number): void
+child(bindings: Record<string, unknown>, options?: KonsoleChildOptions): Konsole
 ```
 
-Displays stored logs in the console using `console.table`.
+Creates a child logger that inherits this logger's level, format, transports, and circular buffer. `bindings` are merged into every log entry the child produces. Bindings accumulate through nested children; call-site fields override bindings on key collision.
+
+Children are **not** registered in `Konsole.instances`.
 
 **Parameters:**
-- `batchSize` — Number of logs to display (default: `defaultBatchSize`)
+- `bindings` — Key-value pairs attached to every entry
+- `options.namespace` — Override namespace (default: parent's namespace)
+- `options.level` — Override minimum level (default: parent's level)
 
 **Example:**
 ```typescript
-logger.viewLogs();     // Default batch
-logger.viewLogs(50);   // Custom batch size
+const req = logger.child({ requestId: 'abc', ip: '1.2.3.4' });
+req.info('Request started', { path: '/users' });
+// → INF  [App]  Request started  requestId=abc ip=1.2.3.4 path=/users
+
+const db = req.child({ component: 'db' }, { namespace: 'App:DB' });
+db.debug('Query', { sql: 'SELECT...', ms: 4 });
+// → DBG  [App:DB]  Query  requestId=abc ip=1.2.3.4 component=db sql="SELECT..." ms=4
 ```
 
 ---
+
+## Instance Methods — Configuration
+
+### setLevel
+
+```typescript
+setLevel(level: LogLevelName): void
+```
+
+Changes the minimum log level at runtime. Entries below the new level are discarded immediately.
+
+**Example:**
+```typescript
+logger.setLevel('error'); // only error and fatal from now on
+```
+
+---
+
+### setCriteria *(deprecated)*
+
+```typescript
+setCriteria(criteria: Criteria): void
+```
+
+Updates the output filter at runtime. Prefer `setLevel()` for threshold-based filtering.
+
+**Example:**
+```typescript
+logger.setCriteria((entry) => entry.level === 'error');
+```
+
+---
+
+### addTransport
+
+```typescript
+addTransport(transport: Transport | TransportConfig): void
+```
+
+Adds a transport to this logger. Accepts both `Transport` instances and plain `TransportConfig` objects (auto-wrapped in `HttpTransport`).
+
+**Example:**
+```typescript
+import { FileTransport } from 'konsole-logger';
+
+logger.addTransport(new FileTransport({ path: '/tmp/debug.log' }));
+
+// Plain config — auto-wrapped in HttpTransport
+logger.addTransport({
+  name: 'backend',
+  url: 'https://logs.example.com/ingest',
+});
+```
+
+---
+
+### flushTransports
+
+```typescript
+flushTransports(): Promise<void>
+```
+
+Immediately flushes all pending batches across every transport.
+
+**Example:**
+```typescript
+window.addEventListener('beforeunload', () => {
+  void logger.flushTransports();
+});
+```
+
+---
+
+## Instance Methods — Log Retrieval
 
 ### getLogs
 
@@ -204,15 +315,22 @@ logger.viewLogs(50);   // Custom batch size
 getLogs(): ReadonlyArray<LogEntry>
 ```
 
-Returns all stored logs as a read-only array.
-
-**Returns:** Array of `LogEntry` objects
+Returns all stored log entries synchronously.
 
 **Example:**
 ```typescript
-const logs = logger.getLogs();
-const errors = logs.filter(l => l.logtype === 'error');
+const errors = logger.getLogs().filter((e) => e.level === 'error');
 ```
+
+---
+
+### getLogsAsync
+
+```typescript
+getLogsAsync(): Promise<ReadonlyArray<LogEntry>>
+```
+
+Returns all stored entries asynchronously. When `useWorker: true`, retrieves from the worker; otherwise equivalent to `getLogs()`.
 
 ---
 
@@ -222,12 +340,20 @@ const errors = logs.filter(l => l.logtype === 'error');
 clearLogs(): void
 ```
 
-Removes all stored logs and resets the batch position.
+Removes all stored entries and resets the `viewLogs()` cursor.
 
-**Example:**
+---
+
+### viewLogs
+
 ```typescript
-logger.clearLogs();
+viewLogs(batchSize?: number): void
 ```
+
+Displays stored entries in batches via `console.table`. Primarily a browser dev tool.
+
+**Parameters:**
+- `batchSize` — Entries per call (default: `defaultBatchSize`)
 
 ---
 
@@ -237,32 +363,22 @@ logger.clearLogs();
 resetBatch(): void
 ```
 
-Resets the batch position for `viewLogs()` to the beginning.
-
-**Example:**
-```typescript
-logger.viewLogs(); // View batch 1
-logger.resetBatch();
-logger.viewLogs(); // View batch 1 again
-```
+Resets the `viewLogs()` pagination cursor to the beginning.
 
 ---
 
-### setCriteria
+### getStats
 
 ```typescript
-setCriteria(criteria: Criteria): void
+getStats(): { logCount: number; maxLogs: number; memoryUsage: string }
 ```
 
-Updates the logging criteria at runtime.
-
-**Parameters:**
-- `criteria` — New criteria value
+Returns buffer usage statistics.
 
 **Example:**
 ```typescript
-logger.setCriteria(true);
-logger.setCriteria((entry) => entry.logtype === 'error');
+logger.getStats();
+// { logCount: 1234, maxLogs: 10000, memoryUsage: "1234/10000 (12.3%)" }
 ```
 
 ---
@@ -270,16 +386,12 @@ logger.setCriteria((entry) => entry.logtype === 'error');
 ### destroy
 
 ```typescript
-destroy(): void
+destroy(): Promise<void>
 ```
 
-Cleans up the logger instance, stopping the cleanup interval and removing it from the registry.
+Flushes and destroys all transports, stops the cleanup interval, and removes this logger from `Konsole.instances`.
 
 **Example:**
 ```typescript
-const temp = new Konsole({ namespace: 'Temp' });
-// ... use logger ...
-temp.destroy();
+await logger.destroy();
 ```
-
-

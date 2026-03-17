@@ -18,7 +18,10 @@ export default defineConfig({
       formats: ['es', 'umd'],
     },
     rollupOptions: {
-      external: [],
+      // Keep Node.js built-ins as proper external imports instead of browser stubs.
+      // FileTransport and StreamTransport guard with isNode() at runtime so this
+      // is safe — the imports are only triggered in Node.js environments.
+      external: (id) => id.startsWith('node:'),
       output: {
         globals: {},
         exports: 'named',

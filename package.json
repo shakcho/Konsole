@@ -1,8 +1,8 @@
 {
   "name": "konsole-logger",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "type": "module",
-  "description": "A lightweight, namespaced logging library for JavaScript/TypeScript with memory storage and conditional output",
+  "description": "Structured, namespaced logging for browser and Node.js — numeric log levels, child loggers, beautiful terminal output, flexible transports",
   "main": "./dist/konsole.umd.cjs",
   "module": "./dist/konsole.js",
   "types": "./dist/index.d.ts",
@@ -23,13 +23,13 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "prepublishOnly": "npm run build",
-    "example:vanilla": "npm run --prefix examples/vanilla-js dev",
-    "example:vanilla:install": "npm install --prefix examples/vanilla-js",
-    "example:vanilla:build": "npm run --prefix examples/vanilla-js build",
-    "example:react": "npm run --prefix examples/react dev",
-    "example:react:install": "npm install --prefix examples/react",
-    "example:react:build": "npm run --prefix examples/react build"
+    "site:install": "npm install --prefix site",
+    "site:dev": "npm run --prefix site dev",
+    "site:build": "npm run --prefix site build"
   },
   "keywords": [
     "logger",
@@ -37,22 +37,36 @@
     "console",
     "debug",
     "typescript",
-    "namespaced-logging"
+    "namespaced-logging",
+    "structured-logging",
+    "browser",
+    "node",
+    "pino",
+    "pino-compatible",
+    "pino-alternative",
+    "ndjson",
+    "child-logger"
   ],
-  "author": "",
+  "author": "Sakti Kumar Chourasia",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/shakcho/Konsole.git"
   },
   "bugs": {
-    "url": ""
+    "url": "https://github.com/shakcho/Konsole/issues"
   },
-  "homepage": "",
+  "homepage": "https://github.com/shakcho/Konsole",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
+    "@types/node": "^20.19.37",
+    "@vitest/coverage-v8": "^4.1.0",
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
     "vite-plugin-dts": "^4.3.0",
-    "vitepress": "^1.5.0"
+    "vitepress": "^1.5.0",
+    "vitest": "^3.2.4"
   }
 }

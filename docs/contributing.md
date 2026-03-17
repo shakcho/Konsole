@@ -7,7 +7,7 @@ Thank you for your interest in contributing to Konsole! This document provides g
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/your-username/konsole.git
+git clone https://github.com/shakcho/Konsole.git
 cd konsole
 ```
 
@@ -98,5 +98,8 @@ Feature requests are welcome! Please describe:
 ## License
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
+
+
+
 
 

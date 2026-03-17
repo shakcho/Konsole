@@ -1,22 +1,32 @@
 # API Reference
 
-This section provides detailed documentation for all Konsole exports.
+Detailed documentation for all Konsole exports.
 
 ## Exports
 
-The `konsole-logger` package exports the following:
-
 ```typescript
-import { 
-  Konsole,          // Main class
+import {
+  // Main class
+  Konsole,
+
+  // Transport classes
+  HttpTransport,
+  ConsoleTransport,
+  FileTransport,
+  StreamTransport,
+
   // Types
-  LogEntry,         // Log entry type
-  Criteria,         // Criteria type
-  KonsolePublic,    // Public interface
-  KonsoleOptions,   // Options interface
+  LogEntry,
+  Transport,          // interface
+  TransportConfig,
+  KonsoleOptions,
+  KonsoleChildOptions,
+  KonsolePublic,
+  Criteria,
+  FileFormat,
 } from 'konsole-logger';
 
-// Default export is also available
+// Default export
 import Konsole from 'konsole-logger';
 ```
 
@@ -26,29 +36,37 @@ import Konsole from 'konsole-logger';
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `Konsole.getLogger(namespace?)` | `Konsole` | Get or create a logger |
-| `Konsole.getNamespaces()` | `string[]` | List all namespaces |
-| `Konsole.exposeToWindow()` | `void` | Expose to browser window |
-| `Konsole.enableGlobalPrint(enabled)` | `void` | Toggle global output |
+| `Konsole.getLogger(namespace?)` | `Konsole` | Get or create a logger by namespace |
+| `Konsole.getNamespaces()` | `string[]` | List all registered namespaces |
+| `Konsole.exposeToWindow()` | `void` | Expose debug handle to `window.__Konsole` |
+| `Konsole.enableGlobalPrint(enabled)` | `void` | Override output for all loggers |
+| `Konsole.addGlobalTransport(config)` | `void` | Add transport to every logger |
 
 ### Instance Methods
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `log(...args)` | `void` | Log a message |
-| `error(...args)` | `void` | Log an error |
-| `warn(...args)` | `void` | Log a warning |
-| `info(...args)` | `void` | Log info |
-| `viewLogs(batchSize?)` | `void` | View logs in console |
-| `getLogs()` | `LogEntry[]` | Get all logs |
-| `clearLogs()` | `void` | Clear all logs |
-| `resetBatch()` | `void` | Reset view position |
-| `setCriteria(criteria)` | `void` | Update criteria |
-| `destroy()` | `void` | Clean up instance |
+| `trace(...args)` | `void` | Level 10 — verbose tracing |
+| `debug(...args)` | `void` | Level 20 — developer detail |
+| `info(...args)` | `void` | Level 30 — general messages |
+| `log(...args)` | `void` | Alias for `info()` |
+| `warn(...args)` | `void` | Level 40 — unexpected but recoverable |
+| `error(...args)` | `void` | Level 50 — operation failed (stderr) |
+| `fatal(...args)` | `void` | Level 60 — unrecoverable failure (stderr) |
+| `child(bindings, options?)` | `Konsole` | Create a child logger with bound fields |
+| `setLevel(level)` | `void` | Change minimum log level at runtime |
+| `setCriteria(criteria)` | `void` | Change output filter at runtime *(deprecated)* |
+| `addTransport(transport)` | `void` | Add a transport to this logger |
+| `flushTransports()` | `Promise<void>` | Force-flush all transport batches |
+| `getLogs()` | `ReadonlyArray<LogEntry>` | Get all stored entries |
+| `getLogsAsync()` | `Promise<ReadonlyArray<LogEntry>>` | Get entries (worker-aware) |
+| `clearLogs()` | `void` | Empty the circular buffer |
+| `viewLogs(batchSize?)` | `void` | Print entries via `console.table` |
+| `resetBatch()` | `void` | Reset `viewLogs()` pagination cursor |
+| `getStats()` | `object` | Memory usage stats |
+| `destroy()` | `Promise<void>` | Flush, stop timers, deregister |
 
 ## Pages
 
 - [Konsole Class](/api/konsole) — Full class documentation
 - [Types](/api/types) — Type definitions
-
-
