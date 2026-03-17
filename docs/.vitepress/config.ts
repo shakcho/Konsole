@@ -4,6 +4,7 @@ export default defineConfig({
   title: 'Konsole',
   description: 'Structured, namespaced logging for browser and Node.js',
   appearance: 'dark',
+  base: '/docs/',
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],

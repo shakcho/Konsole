@@ -6,11 +6,11 @@ const nextConfig = {
     return [
       {
         source: '/docs',
-        destination: 'https://konsole-docs.vercel.app/',
+        destination: 'https://konsole-docs.vercel.app/docs/',
       },
       {
         source: '/docs/:path*',
-        destination: 'https://konsole-docs.vercel.app/:path*',
+        destination: 'https://konsole-docs.vercel.app/docs/:path*',
       },
     ];
   },
