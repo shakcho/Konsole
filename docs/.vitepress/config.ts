@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress';
 export default defineConfig({
   title: 'Konsole',
   description: 'Structured, namespaced logging for browser and Node.js',
+  appearance: 'dark',
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
@@ -17,7 +18,7 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'API', link: '/api/' },
-      { text: 'Live Demo', link: 'https://your-site-url.com' },
+      { text: 'Live Demo', link: 'https://konsole.saktichourasia.dev' },
       {
         text: 'v3.0.0',
         items: [
@@ -72,7 +73,7 @@ export default defineConfig({
 
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2024–2025 Sakti Kumar Chourasia',
+      copyright: `Copyright © 2024–${new Date().getFullYear()} <a href="https://saktichourasia.dev" target="_blank" rel="noreferrer">Sakti Kumar Chourasia</a>`,
     },
 
     search: {
