@@ -72,8 +72,10 @@ Konsole.exposeToWindow();
 
 // In browser console:
 // __Konsole.getLogger('Auth').viewLogs()
+// __Konsole.getLogger('Auth').setTimestamp('iso')
 // __Konsole.listLoggers()
 // __Konsole.enableAll()
+// __Konsole.setTimestamp('iso')   // change all loggers
 ```
 
 ---
@@ -221,6 +223,7 @@ Children are **not** registered in `Konsole.instances`.
 - `bindings` — Key-value pairs attached to every entry
 - `options.namespace` — Override namespace (default: parent's namespace)
 - `options.level` — Override minimum level (default: parent's level)
+- `options.timestamp` — Override timestamp format (default: parent's format)
 
 **Example:**
 ```typescript
@@ -248,6 +251,24 @@ Changes the minimum log level at runtime. Entries below the new level are discar
 **Example:**
 ```typescript
 logger.setLevel('error'); // only error and fatal from now on
+```
+
+---
+
+### setTimestamp
+
+```typescript
+setTimestamp(opts: TimestampFormat | TimestampOptions): void
+```
+
+Changes the timestamp format at runtime. Recreates the internal formatter with the new format. Accepts a preset string, a custom function, or a full `TimestampOptions` object.
+
+**Example:**
+```typescript
+logger.setTimestamp('iso');
+logger.setTimestamp('unixMs');
+logger.setTimestamp({ format: 'iso', highResolution: true });
+logger.setTimestamp((d) => d.toLocaleString('ja-JP'));
 ```
 
 ---

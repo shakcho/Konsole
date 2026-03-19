@@ -9,6 +9,7 @@ interface KonsoleOptions {
   namespace?: string;
   level?: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
   format?: 'auto' | 'pretty' | 'json' | 'text' | 'browser' | 'silent';
+  timestamp?: TimestampFormat | TimestampOptions;
   transports?: (Transport | TransportConfig)[];
   maxLogs?: number;
   defaultBatchSize?: number;
@@ -95,6 +96,54 @@ const logger = new Konsole({ namespace: 'App', format: 'json' });
 
 // Silent in production — logs stored, nothing printed
 const logger = new Konsole({ namespace: 'App', format: 'silent' });
+```
+
+---
+
+### timestamp
+
+- **Type:** `TimestampFormat | TimestampOptions`
+- **Default:** `'datetime'` (pretty/text/browser), `'iso'` (json)
+
+Controls how timestamps are formatted in log output. Accepts a preset string, a custom function, or a full options object.
+
+| Preset | Output | Example |
+|--------|--------|---------|
+| `'datetime'` | Local date + time *(default)* | `2025-03-16 10:23:45.123` |
+| `'iso'` | ISO 8601 UTC | `2025-03-16T10:23:45.123Z` |
+| `'time'` | Time only | `10:23:45.123` |
+| `'date'` | Date only | `2025-03-16` |
+| `'unix'` | Epoch seconds | `1710583425` |
+| `'unixMs'` | Epoch milliseconds | `1710583425123` |
+| `'none'` | Omit timestamp | |
+
+```typescript
+// Preset string
+const logger = new Konsole({ namespace: 'App', timestamp: 'iso' });
+
+// Custom function
+const logger = new Konsole({
+  namespace: 'App',
+  timestamp: (date) => date.toLocaleString('en-US'),
+});
+
+// Full options object with high-resolution timing
+const logger = new Konsole({
+  namespace: 'App',
+  timestamp: { format: 'iso', highResolution: true },
+});
+```
+
+::: tip High-resolution timestamps
+When `highResolution: true`, each log entry gets an `hrTime` field containing a nanosecond-precision monotonic timestamp (via `process.hrtime.bigint()` in Node.js or `performance.now()` in browsers). Useful for measuring intervals between log lines.
+:::
+
+Change the timestamp format at runtime:
+
+```typescript
+logger.setTimestamp('unixMs');
+logger.setTimestamp({ format: 'iso', highResolution: true });
+logger.setTimestamp((d) => d.toLocaleString('ja-JP'));
 ```
 
 ---
@@ -213,6 +262,14 @@ logger.setLevel('error'); // only error and fatal from now on
 logger.setLevel('trace'); // back to everything
 ```
 
+### Change the timestamp format
+
+```typescript
+logger.setTimestamp('iso');
+logger.setTimestamp({ format: 'unixMs', highResolution: true });
+logger.setTimestamp((d) => d.toLocaleString());
+```
+
 ### Global print override
 
 Forces all loggers to print regardless of their individual `format` or `criteria`:
@@ -264,6 +321,7 @@ const logger = new Konsole({
   namespace: 'PaymentService',
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'warn',
   format: 'auto',             // pretty in terminal, JSON in CI
+  timestamp: 'iso',           // ISO 8601 timestamps
   defaultBatchSize: 50,
   retentionPeriod: 12 * 60 * 60 * 1000, // 12 hours
   cleanupInterval: 15 * 60 * 1000,

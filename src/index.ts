@@ -9,6 +9,8 @@ export type {
   TransportConfig,
 } from './Konsole';
 
+export type { TimestampFormat, TimestampOptions } from './types';
+
 export { CircularBuffer } from './CircularBuffer';
 
 // ─── Transports ───────────────────────────────────────────────────────────────
@@ -34,8 +36,10 @@ export {
   SilentFormatter,
   createFormatter,
   createAutoFormatter,
+  resolveTimestampConfig,
+  formatTimestamp,
 } from './formatter';
-export type { Formatter, KonsoleFormat } from './formatter';
+export type { Formatter, FormatterOptions, KonsoleFormat } from './formatter';
 
 // ─── Environment ──────────────────────────────────────────────────────────────
-export { isBrowser, isNode, isTTY, getGlobalFetch } from './env';
+export { isBrowser, isNode, isTTY, getGlobalFetch, getHrTime } from './env';

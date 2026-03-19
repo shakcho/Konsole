@@ -131,6 +131,7 @@ type LogEntry = {
   messages: unknown[];              // original arguments
   fields: Record<string, unknown>;  // structured key-value pairs (includes bindings)
   timestamp: Date;
+  hrTime?: number;                  // high-res nanosecond offset (when highResolution: true)
   namespace: string;
   level: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
   levelValue: number;               // 10 | 20 | 30 | 40 | 50 | 60

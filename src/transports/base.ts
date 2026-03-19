@@ -19,29 +19,40 @@ function serializeValue(val: unknown): string {
  * Schema is compatible with Pino / Datadog / Loki ingest formats.
  */
 export function toJsonLine(entry: LogEntry): string {
-  return JSON.stringify({
+  const obj: Record<string, unknown> = {
     level:     LEVELS[entry.level],
     levelName: entry.level,
     time:      entry.timestamp.toISOString(),
     namespace: entry.namespace,
     msg:       entry.msg,
     ...entry.fields,
-  });
+  };
+  if (entry.hrTime !== undefined) {
+    obj.hrTime = entry.hrTime;
+  }
+  return JSON.stringify(obj);
+}
+
+/** Format local date+time as YYYY-MM-DD HH:MM:SS.mmm */
+function formatDatetime(date: Date): string {
+  const y  = String(date.getFullYear());
+  const mo = String(date.getMonth() + 1).padStart(2, '0');
+  const d  = String(date.getDate()).padStart(2, '0');
+  const h  = String(date.getHours()).padStart(2, '0');
+  const m  = String(date.getMinutes()).padStart(2, '0');
+  const s  = String(date.getSeconds()).padStart(2, '0');
+  const ms = String(date.getMilliseconds()).padStart(3, '0');
+  return `${y}-${mo}-${d} ${h}:${m}:${s}.${ms}`;
 }
 
 /** Serialize a log entry to a human-readable text line (no ANSI). */
 export function toTextLine(entry: LogEntry): string {
-  const h  = String(entry.timestamp.getHours()).padStart(2, '0');
-  const m  = String(entry.timestamp.getMinutes()).padStart(2, '0');
-  const s  = String(entry.timestamp.getSeconds()).padStart(2, '0');
-  const ms = String(entry.timestamp.getMilliseconds()).padStart(3, '0');
-
   const fields = Object.entries(entry.fields)
     .map(([k, v]) => `${k}=${serializeValue(v)}`)
     .join(' ');
 
   return [
-    `${h}:${m}:${s}.${ms}`,
+    formatDatetime(entry.timestamp),
     LEVEL_LABELS[entry.level],
     `[${entry.namespace}]`,
     entry.msg,

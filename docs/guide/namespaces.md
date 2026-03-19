@@ -74,7 +74,7 @@ db.debug('Query', { sql: 'SELECT...', ms: 4 });
 // → DBG  [App:DB]  Query  requestId=r1 component=postgres sql="SELECT..." ms=4
 ```
 
-### Overriding namespace or level
+### Overriding namespace, level, or timestamp
 
 ```typescript
 // Override namespace for a subsystem
@@ -82,6 +82,9 @@ const db = logger.child({ component: 'db' }, { namespace: 'API:DB' });
 
 // Override level — can only be more restrictive than parent
 const noisy = logger.child({}, { level: 'error' });
+
+// Override timestamp format for a child
+const audit = logger.child({ type: 'audit' }, { timestamp: 'iso' });
 ```
 
 ### Child isolation

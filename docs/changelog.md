@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-03-18
+
+### Added
+
+- **Configurable timestamps** — New `timestamp` option on `KonsoleOptions` and `KonsoleChildOptions`
+  - Preset formats: `'datetime'` (default), `'iso'`, `'time'`, `'date'`, `'unix'`, `'unixMs'`, `'none'`
+  - Custom function: `(date: Date, hrTime?: number) => string`
+  - Full options object: `{ format: TimestampFormat, highResolution: boolean }`
+  - New `TimestampFormat` and `TimestampOptions` types exported
+
+- **Full date in timestamps** — Pretty, text, and browser formatters now show `YYYY-MM-DD HH:MM:SS.mmm` by default (was time-only `HH:MM:SS.mmm`)
+
+- **Browser formatter timestamps** — `BrowserFormatter` now renders timestamps in DevTools output (previously omitted, relying on DevTools built-in timestamps)
+
+- **High-resolution timestamps** — `{ highResolution: true }` captures nanosecond-precision monotonic timing
+  - `LogEntry.hrTime` field (nanoseconds via `process.hrtime.bigint()` in Node.js, `performance.now()` in browsers)
+  - Included in JSON output when present
+  - Custom timestamp functions receive `hrTime` as the second argument
+
+- **Runtime timestamp control** — New `setTimestamp()` instance method
+  - Accepts preset strings, custom functions, or `TimestampOptions` objects
+  - Recreates the internal formatter with the new format
+
+- **Browser runtime timestamp control** — `exposeToWindow()` now exposes:
+  - `__Konsole.setTimestamp(format)` — change all loggers
+  - `__Konsole.getLogger(ns).setTimestamp(format)` — change a specific logger
+  - `__Konsole.getLogger(ns).setLevel(level)` — change level from DevTools
+
+- **Child logger timestamp override** — `child(bindings, { timestamp })` can override the parent's timestamp format
+
+- **New exports** — `resolveTimestampConfig()`, `formatTimestamp()`, `getHrTime()`, `FormatterOptions`
+
+- **Performance optimizations** — on par with Pino on per-call overhead, faster on JSON serialization
+  - `buffer` option: defaults to `false` in Node.js (no circular buffer overhead), `true` in browsers
+  - Disabled log levels add zero overhead
+  - Optimized argument parsing and field merging on the hot path
+  - Removed deprecated `logtype` field from entry construction
+
+- **Benchmark suite** — `npm run benchmark` compares against Pino, Winston, and Bunyan
+  - Throughput (ops/sec), latency (p50/p95/p99), bundle size, and memory usage
+  - Daily CI benchmark via GitHub Actions (`.github/workflows/benchmark.yml`)
+
+### Changed
+
+- Default timestamp format changed from time-only (`HH:MM:SS.mmm`) to `datetime` (`YYYY-MM-DD HH:MM:SS.mmm`) for pretty, text, and browser formatters
+- `toTextLine()` in file/stream transports now outputs `YYYY-MM-DD HH:MM:SS.mmm` (was time-only)
+- `createFormatter()` and `createAutoFormatter()` accept an optional `tsFormat` parameter
+- All formatter classes now accept `FormatterOptions` with an optional `timestampFormat` field
+- Child loggers get their own formatter instance when overriding `timestamp` (previously always shared with parent)
+- In Node.js, `buffer` defaults to `false` — `getLogs()` / `viewLogs()` return empty unless `buffer: true` is set explicitly
+- Disabled log levels add zero per-call overhead in Node.js
+
+---
+
 ## [3.0.0] - 2025-03-14
 
 ### Added

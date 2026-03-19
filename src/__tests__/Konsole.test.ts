@@ -14,7 +14,7 @@ class SpyTransport implements Transport {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeSilentLogger(overrides: ConstructorParameters<typeof Konsole>[0] = {}): Konsole {
-  return new Konsole({ namespace: 'Test', format: 'silent', ...overrides });
+  return new Konsole({ namespace: 'Test', format: 'silent', buffer: true, ...overrides });
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -185,7 +185,7 @@ describe('Konsole', () => {
   describe('criteria (deprecated filter)', () => {
     it('boolean false suppresses output but still stores in buffer', () => {
       const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-      const logger = new Konsole({ namespace: 'CriteriaTest', criteria: false });
+      const logger = new Konsole({ namespace: 'CriteriaTest', criteria: false, buffer: true });
 
       logger.info('silent');
       expect(stdoutSpy).not.toHaveBeenCalled();
@@ -345,6 +345,123 @@ describe('Konsole', () => {
       logger.info('forced out');
       expect(stdoutSpy).toHaveBeenCalledOnce();
       stdoutSpy.mockRestore();
+    });
+  });
+
+  describe('timestamp configuration', () => {
+    it('passes timestamp format to the formatter via constructor', () => {
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      const logger = new Konsole({
+        namespace: 'TsCtorTest',
+        format: 'json',
+        timestamp: 'unixMs',
+      });
+      logger.info('hello');
+      const parsed = JSON.parse(String(writeSpy.mock.calls[0][0]).trim());
+      // unixMs should be a numeric string
+      expect(parsed.time).toMatch(/^\d+$/);
+      writeSpy.mockRestore();
+    });
+
+    it('setTimestamp changes the format at runtime', () => {
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      const logger = new Konsole({
+        namespace: 'TsRuntimeTest',
+        format: 'json',
+        timestamp: 'iso',
+      });
+
+      logger.info('before');
+      const before = JSON.parse(String(writeSpy.mock.calls[0][0]).trim());
+      expect(before.time).toMatch(/T.*Z$/); // ISO format
+
+      logger.setTimestamp('unixMs');
+      logger.info('after');
+      const after = JSON.parse(String(writeSpy.mock.calls[1][0]).trim());
+      expect(after.time).toMatch(/^\d+$/); // epoch ms
+
+      writeSpy.mockRestore();
+    });
+
+    it('highResolution populates hrTime on log entries', () => {
+      const spy = new SpyTransport();
+      const logger = makeSilentLogger({
+        namespace: 'HrTest',
+        timestamp: { highResolution: true },
+        transports: [spy],
+      });
+
+      logger.info('with hrTime');
+      expect(spy.entries[0].hrTime).toBeTypeOf('number');
+      expect(spy.entries[0].hrTime).toBeGreaterThan(0);
+    });
+
+    it('hrTime is undefined when highResolution is false (default)', () => {
+      const spy = new SpyTransport();
+      const logger = makeSilentLogger({
+        namespace: 'NoHrTest',
+        transports: [spy],
+      });
+
+      logger.info('no hrTime');
+      expect(spy.entries[0].hrTime).toBeUndefined();
+    });
+
+    it('setTimestamp enables highResolution at runtime', () => {
+      const spy = new SpyTransport();
+      const logger = makeSilentLogger({
+        namespace: 'HrRuntimeTest',
+        transports: [spy],
+      });
+
+      logger.info('before');
+      expect(spy.entries[0].hrTime).toBeUndefined();
+
+      logger.setTimestamp({ format: 'datetime', highResolution: true });
+      logger.info('after');
+      expect(spy.entries[1].hrTime).toBeTypeOf('number');
+    });
+
+    it('child inherits parent timestamp config', () => {
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      const parent = new Konsole({
+        namespace: 'TsChildParent',
+        format: 'json',
+        timestamp: 'unixMs',
+      });
+      const child = parent.child({ tag: 'c' });
+      child.info('from child');
+      const parsed = JSON.parse(String(writeSpy.mock.calls[0][0]).trim());
+      expect(parsed.time).toMatch(/^\d+$/);
+      writeSpy.mockRestore();
+    });
+
+    it('child can override timestamp format', () => {
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      const parent = new Konsole({
+        namespace: 'TsChildOverride',
+        format: 'json',
+        timestamp: 'unixMs',
+      });
+      const child = parent.child({}, { timestamp: 'iso' });
+
+      child.info('iso child');
+      const parsed = JSON.parse(String(writeSpy.mock.calls[0][0]).trim());
+      expect(parsed.time).toMatch(/T.*Z$/);
+      writeSpy.mockRestore();
+    });
+
+    it('custom function timestamp works end-to-end', () => {
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      const logger = new Konsole({
+        namespace: 'TsCustomTest',
+        format: 'json',
+        timestamp: (d) => `epoch:${d.getTime()}`,
+      });
+      logger.info('custom');
+      const parsed = JSON.parse(String(writeSpy.mock.calls[0][0]).trim());
+      expect(parsed.time).toMatch(/^epoch:\d+$/);
+      writeSpy.mockRestore();
     });
   });
 });
