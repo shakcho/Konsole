@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.1.0] - 2026-03-18
+## [4.0.0] - 2026-03-19
 
 ### Added
 
@@ -56,6 +56,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Child loggers get their own formatter instance when overriding `timestamp` (previously always shared with parent)
 - In Node.js, `buffer` defaults to `false` — `getLogs()` / `viewLogs()` return empty unless `buffer: true` is set explicitly
 - Disabled log levels add zero per-call overhead in Node.js
+
+### Breaking Changes
+
+- **Default timestamp format changed** — Pretty, Text, and Browser formatters now output `YYYY-MM-DD HH:MM:SS.mmm` (was `HH:MM:SS.mmm`). Restore old behavior with `timestamp: 'time'`.
+- **BrowserFormatter now renders timestamps** — DevTools output includes a timestamp prefix. Use `timestamp: 'none'` to omit.
+- **`buffer` defaults to `false` in Node.js** — `getLogs()`, `viewLogs()`, and `getStats()` return empty unless `buffer: true` is set. Browser default is unchanged (`true`).
+- **`logtype` field removed from entries** — The deprecated `LogEntry.logtype` is no longer set. Use `entry.level` instead (available since v3.0.0).
+- **`toTextLine()` output changed** — File and stream transport text format now includes the full date (`YYYY-MM-DD HH:MM:SS.mmm`), matching the formatter default.
+
+### Migration from v3
+
+```typescript
+// Restore v3 timestamp format
+new Konsole({ timestamp: 'time' });
+
+// Restore v3 buffer behavior in Node.js
+new Konsole({ buffer: true });
+
+// Replace logtype usage
+entry.logtype  // ❌ undefined in v4
+entry.level    // ✅ 'info', 'error', etc.
+```
 
 ---
 
