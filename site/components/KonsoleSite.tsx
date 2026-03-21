@@ -211,6 +211,32 @@ new Konsole({ format: 'silent'  }); // no output — logs stored in memory
 new Konsole({ format: 'browser' }); // DevTools badge styling`,
   },
   {
+    title: 'Timestamps',
+    description: 'Full date+time by default. ISO 8601, epoch, nanosecond precision, or custom functions. Change at runtime.',
+    code: `// ISO timestamps
+new Konsole({ namespace: 'App', timestamp: 'iso' });
+// → 2025-03-16T10:23:45.123Z  INF  [App]  ...
+
+// High-resolution nanosecond timestamps
+new Konsole({
+  namespace: 'App',
+  timestamp: { format: 'iso', highResolution: true },
+});
+
+// Custom function
+new Konsole({
+  namespace: 'App',
+  timestamp: (date) => date.toLocaleString('ja-JP'),
+});
+
+// Change at runtime
+logger.setTimestamp('unixMs');
+
+// Change from browser DevTools
+// __Konsole.setTimestamp('iso')
+// __Konsole.getLogger('App').setTimestamp('time')`,
+  },
+  {
     title: 'Transports',
     description: 'Ship logs to files, streams, or HTTP endpoints with batching and retry.',
     code: `import { Konsole, FileTransport } from 'konsole-logger';
@@ -230,6 +256,31 @@ const logger = new Konsole({
     },
   ],
 });`,
+  },
+  {
+    title: 'Web Worker',
+    description: 'Offload log storage and HTTP transport to a background thread — keep the main thread free for rendering.',
+    code: `const logger = new Konsole({
+  namespace: 'App',
+  useWorker: true,         // logs processed off main thread
+  transports: [{
+    name: 'backend',
+    url: '/api/logs',
+    batchSize: 50,          // batched in the worker
+    flushInterval: 10000,   // flushed from the worker
+  }],
+});
+
+// Main thread stays responsive — logging never blocks UI
+logger.info('User clicked', { button: 'checkout' });
+logger.info('Animation frame', { fps: 60, dt: 16.2 });
+
+// Retrieve logs from worker asynchronously
+const logs = await logger.getLogsAsync();
+
+// Expose to DevTools for production debugging
+Konsole.exposeToWindow();
+// → __Konsole.getLogger('App').viewLogs()`,
   },
 ];
 
@@ -387,8 +438,16 @@ export default function KonsoleSite() {
     return logs;
   };
 
-  const formatTime = (d: Date) =>
-    d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const formatTime = (d: Date) => {
+    const y  = String(d.getFullYear());
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h  = String(d.getHours()).padStart(2, '0');
+    const m  = String(d.getMinutes()).padStart(2, '0');
+    const sec = String(d.getSeconds()).padStart(2, '0');
+    const ms = String(d.getMilliseconds()).padStart(3, '0');
+    return `${y}-${mo}-${day} ${h}:${m}:${sec}.${ms}`;
+  };
 
   const formatFields = (fields: Record<string, unknown>) => {
     const entries = Object.entries(fields);
@@ -430,11 +489,12 @@ export default function KonsoleSite() {
 
         {/* Header */}
         <header style={s.header}>
-          <div style={s.headerBadge}>Browser + Node.js · Structured logging</div>
+          <div style={s.headerBadge}>Browser-first · Node.js ready · Web Worker transport</div>
           <h1 style={s.title}>Konsole</h1>
           <p style={s.subtitle}>
-            Structured, namespaced logging with beautiful terminal output, child loggers,
-            and flexible transports.
+            Structured, namespaced logging built for the browser and Node.js. Web Worker transport
+            keeps your UI thread free. Child loggers, configurable timestamps, and flexible transports
+            — all in ~10 KB with zero dependencies.
           </p>
         </header>
 
@@ -581,7 +641,8 @@ export default function KonsoleSite() {
           <h2 style={s.sectionTitle}>How it Works</h2>
           <p style={s.prose}>
             Konsole works in browser and Node.js. It automatically picks the best output format
-            for each environment and stores every log in a circular buffer for later inspection.
+            for each environment. In browsers, logs are stored in a circular buffer for DevTools inspection.
+            In Node.js, disabled levels add zero overhead — no buffer, no allocations.
           </p>
 
           {/* Feature grid */}
@@ -589,10 +650,12 @@ export default function KonsoleSite() {
             {[
               { icon: '📊', title: 'Structured logging', body: 'Every entry carries msg, fields, level, levelValue, namespace and timestamp — compatible with Datadog, Loki, and any log aggregator.' },
               { icon: '🏷️', title: 'Child loggers', body: 'logger.child({ requestId }) creates an ephemeral child that injects context into every line it produces. Bindings accumulate through nesting.' },
+              { icon: '⏱️', title: 'Configurable timestamps', body: "Full date+time by default. Presets: ISO 8601, epoch seconds/ms, time-only. Custom functions. Nanosecond precision via highResolution. Change format at runtime." },
               { icon: '🎨', title: 'Auto formatting', body: "TTY terminal → ANSI pretty. Pipe / CI → NDJSON. Browser → styled %c badges. One format: 'auto' option handles it all." },
               { icon: '🚚', title: 'Transports', body: 'HttpTransport, FileTransport, StreamTransport, ConsoleTransport. Add multiple to one logger. Filter and transform per transport.' },
-              { icon: '💾', title: 'Circular buffer', body: 'maxLogs: 1000 keeps only the last 1000 entries in memory — no unbounded growth in long-running apps.' },
-              { icon: '⚡', title: 'Web Worker', body: 'useWorker: true offloads storage and HTTP transport to a background thread — keeps the main thread free in high-volume browser apps.' },
+              { icon: '🧵', title: 'Web Worker transport', body: 'useWorker: true moves log storage and HTTP batching off the main thread. Your UI never blocks on logging — even at high volume. Browser-exclusive feature no other logger offers.' },
+              { icon: '💾', title: 'In-browser log history', body: 'Circular buffer stores logs in memory for DevTools inspection via getLogs() and exposeToWindow(). In Node.js, buffer is off by default for maximum throughput.' },
+              { icon: '⚡', title: 'Fast & lightweight', body: '~10 KB gzipped, zero dependencies. On par with Pino on overhead, faster on JSON serialization, and significantly faster than Winston and Bunyan — at 1/3 the bundle size.' },
             ].map(({ icon, title, body }) => (
               <div key={title} style={s.featureCard}>
                 <div style={s.featureIcon}>{icon}</div>
@@ -601,6 +664,87 @@ export default function KonsoleSite() {
               </div>
             ))}
           </div>
+        </section>
+
+        {/* ── Benchmarks ── */}
+        <section style={s.section}>
+          <h2 style={s.sectionTitle}>Benchmarks</h2>
+          <p style={s.prose}>
+            Measured on Apple M2 Max, Node.js v23, 100K iterations.
+            Pino, Winston, and Bunyan are Node.js only — Konsole works in both browser and Node.js.
+            Run <code style={s.inlineCode}>npm run benchmark</code> to reproduce.
+          </p>
+
+          {/* Throughput table */}
+          <div style={s.benchLabel}>Throughput (ops/sec, higher is better)</div>
+          <div style={s.tableWrap}>
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={{ ...s.th, textAlign: 'left' }}>Scenario</th>
+                  <th style={{ ...s.th, ...s.thHighlight }}>Konsole</th>
+                  <th style={s.th}>Pino</th>
+                  <th style={s.th}>Winston</th>
+                  <th style={s.th}>Bunyan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['Silent / disabled', '~8M', '~7M', '~1.5M', '—'],
+                  ['JSON → /dev/null', '~650K', '~470K', '~270K', '~340K'],
+                  ['Child (disabled)',  '~17M', '~14M', '~2M',   '—'],
+                  ['Browser + buffer',  '~4.7M', '—',   '—',     '—'],
+                  ['Browser + Worker',  'non-blocking', '—',   '—',     '—'],
+                ].map(([scenario, ...vals], i) => (
+                  <tr key={i} style={i % 2 === 0 ? s.trEven : {}}>
+                    <td style={{ ...s.td, textAlign: 'left' }}>{scenario}</td>
+                    <td style={{ ...s.td, ...s.tdHighlight }}>{vals[0]}</td>
+                    <td style={s.td}>{vals[1]}</td>
+                    <td style={s.td}>{vals[2]}</td>
+                    <td style={s.td}>{vals[3]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Size table */}
+          <div style={{ ...s.benchLabel, marginTop: 24 }}>Bundle &amp; Install Size (smaller is better)</div>
+          <div style={s.tableWrap}>
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={{ ...s.th, textAlign: 'left' }}></th>
+                  <th style={{ ...s.th, ...s.thHighlight }}>Konsole</th>
+                  <th style={s.th}>Pino</th>
+                  <th style={s.th}>Winston</th>
+                  <th style={s.th}>Bunyan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['Bundle (gzip)', '~10 KB', '~32 KB', '~70 KB', '~45 KB'],
+                  ['Install size',  '86 KB',  '1.17 MB', '360 KB', '212 KB'],
+                  ['Dependencies',  '0',      '11',     '11',     '0'],
+                ].map(([label, ...vals], i) => (
+                  <tr key={i} style={i % 2 === 0 ? s.trEven : {}}>
+                    <td style={{ ...s.td, textAlign: 'left' }}>{label}</td>
+                    <td style={{ ...s.td, ...s.tdHighlight }}>{vals[0]}</td>
+                    <td style={s.td}>{vals[1]}</td>
+                    <td style={s.td}>{vals[2]}</td>
+                    <td style={s.td}>{vals[3]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p style={{ ...s.prose, marginTop: 16, fontSize: 12, color: '#a3a3a3' }}>
+            Pino, Winston, and Bunyan are Node.js only.
+            Konsole is the only structured logger that works in both browser and Node.js
+            with Web Worker offloading for non-blocking transport processing.
+            See the <a style={{ color: '#6366f1' }} href={LINKS.docs + '/guide/performance'}>Performance Guide</a> for details.
+          </p>
         </section>
 
         {/* ── Code Snippets ── */}
@@ -822,6 +966,17 @@ const s: Record<string, React.CSSProperties> = {
   featureIcon:  { fontSize: 20, marginBottom: 8 },
   featureTitle: { fontSize: 13, fontWeight: 600, color: '#171717', marginBottom: 6 },
   featureBody:  { fontSize: 13, color: '#737373', lineHeight: 1.6 },
+
+  // Benchmark tables
+  benchLabel:  { fontSize: 11, fontWeight: 600, color: '#a3a3a3', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 },
+  inlineCode:  { fontFamily: 'var(--font-mono), monospace', fontSize: 12, background: '#f5f5f5', padding: '2px 6px', borderRadius: 4, color: '#525252' },
+  tableWrap:   { overflowX: 'auto', borderRadius: 10, border: '1px solid #f0f0f0' },
+  table:       { width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono), monospace', fontSize: 12 },
+  th:          { textAlign: 'right' as const, padding: '10px 14px', borderBottom: '1px solid #f0f0f0', color: '#a3a3a3', fontWeight: 500, whiteSpace: 'nowrap' as const },
+  thHighlight: { color: '#6366f1', fontWeight: 700 },
+  td:          { textAlign: 'right' as const, padding: '9px 14px', borderBottom: '1px solid #f9f9f9', color: '#525252', whiteSpace: 'nowrap' as const },
+  tdHighlight: { color: '#171717', fontWeight: 600 },
+  trEven:      { background: '#fafafa' },
 
   // Code snippets
   snippetTabs:      { display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 16 },

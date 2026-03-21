@@ -1,6 +1,45 @@
 import type { LogLevelName } from './levels';
 import type { KonsoleFormat } from './formatter';
 
+// ─── Timestamp configuration ─────────────────────────────────────────────────
+
+/**
+ * Preset timestamp formats or a custom formatting function.
+ *
+ * - `'iso'`      — `2024-06-15T10:23:45.123Z` (full ISO 8601, UTC)
+ * - `'datetime'` — `2024-06-15 10:23:45.123` (local date + time)
+ * - `'date'`     — `2024-06-15`
+ * - `'time'`     — `10:23:45.123` (time-only, local)
+ * - `'unix'`     — `1718446025` (epoch seconds)
+ * - `'unixMs'`   — `1718446025123` (epoch milliseconds)
+ * - `'none'`     — omit timestamp from formatted output
+ * - `function`   — custom formatter receiving the Date (and optional hrTime ns offset)
+ */
+export type TimestampFormat =
+  | 'iso'
+  | 'datetime'
+  | 'date'
+  | 'time'
+  | 'unix'
+  | 'unixMs'
+  | 'none'
+  | ((date: Date, hrTime?: number) => string);
+
+/**
+ * Full timestamp configuration object.
+ */
+export interface TimestampOptions {
+  /** Timestamp output format (default: `'datetime'` for pretty/text, `'iso'` for json). */
+  format?: TimestampFormat;
+  /**
+   * Capture high-resolution timing via `performance.now()` (browser) or
+   * `process.hrtime.bigint()` (Node.js). The value is stored on `LogEntry.hrTime`
+   * as nanoseconds relative to process/page start.
+   * @default false
+   */
+  highResolution?: boolean;
+}
+
 /**
  * Represents a single log entry stored in the circular buffer.
  */
@@ -12,6 +51,11 @@ export type LogEntry = {
   /** Structured key-value fields merged from the call arguments. */
   fields: Record<string, unknown>;
   timestamp: Date;
+  /**
+   * High-resolution monotonic timestamp in nanoseconds (relative to process/page start).
+   * Present only when `highResolution: true` is set in timestamp options.
+   */
+  hrTime?: number;
   namespace: string;
   level: LogLevelName;
   levelValue: number;
@@ -27,6 +71,7 @@ export type SerializableLogEntry = {
   messages: unknown[];
   fields: Record<string, unknown>;
   timestamp: string;
+  hrTime?: number;
   namespace: string;
   level: LogLevelName;
   levelValue: number;
@@ -140,6 +185,15 @@ export interface KonsoleOptions {
   cleanupInterval?: number;
   /** Maximum entries to keep in the circular buffer (default: 10000) */
   maxLogs?: number;
+  /**
+   * Enable in-memory circular buffer for `getLogs()` / `viewLogs()`.
+   *
+   * - **Browser** (default: `true`) — logs stored for DevTools inspection via `exposeToWindow()`
+   * - **Node.js** (default: `false`) — logs go to stdout/transports; no buffer overhead
+   *
+   * Set explicitly to override the environment default.
+   */
+  buffer?: boolean;
   /** Offload log storage to a Web Worker — browser only (default: false) */
   useWorker?: boolean;
   /**
@@ -148,6 +202,26 @@ export interface KonsoleOptions {
    * and concrete `Transport` instances (`ConsoleTransport`, `FileTransport`, etc.).
    */
   transports?: (Transport | TransportConfig)[];
+
+  /**
+   * Timestamp format configuration.
+   *
+   * Pass a preset string (`'iso'`, `'datetime'`, `'time'`, etc.), a custom
+   * `(date, hrTime?) => string` function, or a full `TimestampOptions` object
+   * for both format and high-resolution control.
+   *
+   * Defaults:
+   * - Pretty / Text / Browser formatters → `'datetime'`
+   * - JSON formatter                     → `'iso'`
+   *
+   * @example
+   * ```ts
+   * new Konsole({ timestamp: 'iso' })
+   * new Konsole({ timestamp: { format: 'iso', highResolution: true } })
+   * new Konsole({ timestamp: (d) => d.toLocaleString() })
+   * ```
+   */
+  timestamp?: TimestampFormat | TimestampOptions;
 }
 
 /**
@@ -166,6 +240,8 @@ export interface KonsoleChildOptions {
    * log levels that the parent's buffer would discard.
    */
   level?: LogLevelName;
+  /** Override the timestamp format for this child logger. */
+  timestamp?: TimestampFormat | TimestampOptions;
 }
 
 // ─── Worker message protocol ──────────────────────────────────────────────────

@@ -1,180 +1,172 @@
-# Performance Optimization
+# Performance
 
-Konsole includes several features to optimize performance in production applications.
+Konsole is built for production. It adds minimal overhead to your application while offering structured logging, child loggers, configurable timestamps, and flexible transports — all in a ~10 KB gzipped bundle with zero dependencies.
+
+## Benchmarks
+
+Measured on Apple M2 Max, Node.js v23.11.0, 100K iterations per benchmark.
+
+### Throughput (ops/sec)
+
+| Scenario | Konsole | Pino | Winston | Bunyan |
+|---|---:|---:|---:|---:|
+| Silent / disabled | ~8M | ~7M | ~1.5M | — |
+| JSON → /dev/null | ~650K | ~470K | ~270K | ~340K |
+| Child (disabled) | ~17M | ~14M | ~2M | — |
+| Silent (browser, with buffer) | ~4.7M | — | — | — |
+| Browser + Worker | non-blocking | — | — | — |
+
+> Pino, Winston, and Bunyan are Node.js only. Konsole is the only structured logger that runs natively in the browser with Web Worker offloading.
+
+### Latency (p50)
+
+| Scenario | Konsole | Pino | Winston | Bunyan |
+|---|---:|---:|---:|---:|
+| Silent | 83 ns | 83 ns | 292 ns | — |
+| JSON → stream | 1.13 µs | 1.50 µs | 1.54 µs | 2.08 µs |
+| Child (disabled) | 41 ns | 41 ns | 292 ns | — |
+
+### Bundle & Install Size
+
+| | Konsole | Pino | Winston | Bunyan |
+|---|---:|---:|---:|---:|
+| Bundle (gzip) | ~10 KB | ~32 KB | ~70 KB | ~45 KB |
+| Install size | 86 KB | 1.17 MB | 360 KB | 212 KB |
+| Dependencies | 0 | 11 | 11 | 0 |
+
+::: info Reproducing benchmarks
+Microbenchmark numbers at the nanosecond level vary between runs due to V8 JIT state, GC, and OS scheduling. Run `npm run benchmark` to see numbers on your hardware. Install competitors first with `npm install --no-save pino winston bunyan`.
+:::
+
+## Buffer Mode
+
+In **Node.js** (default), log entries go directly to formatters and transports with no in-memory storage. This gives you maximum throughput and zero memory accumulation.
+
+In **browsers** (default), entries are stored in a circular buffer so you can inspect them via `getLogs()`, `viewLogs()`, and the `exposeToWindow()` DevTools handle.
+
+```typescript
+// Node.js: maximum throughput, no buffer (default)
+const logger = new Konsole({ namespace: 'App' });
+
+// Browser: stored for DevTools inspection (default)
+const logger = new Konsole({ namespace: 'App' });
+
+// Node.js: opt in to buffer when you need getLogs()
+const logger = new Konsole({ namespace: 'App', buffer: true });
+```
 
 ## Circular Buffer
 
-By default, Konsole stores up to 10,000 logs in a circular buffer. When the limit is reached, oldest logs are automatically evicted.
+When `buffer` is enabled, Konsole stores up to 10,000 logs (configurable via `maxLogs`) in a circular buffer. When the limit is reached, oldest logs are automatically evicted.
 
 ```typescript
 const logger = new Konsole({
   namespace: 'App',
-  maxLogs: 5000, // Reduce memory footprint
+  buffer: true,
+  maxLogs: 5000,
 });
 ```
 
-### Benefits
-
-- **Constant memory usage** - Never grows beyond the limit
-- **No manual cleanup** - Automatic eviction of old logs
-- **Fast operations** - O(1) push and evict
-
-### Checking Usage
+- **Constant memory** — never grows beyond the limit
+- **No manual cleanup** — automatic eviction
+- **O(1) operations** — push and evict
 
 ```typescript
 const stats = logger.getStats();
 console.log(stats.memoryUsage); // "1234/5000 (24.7%)"
 ```
 
-## Web Worker
+## Web Worker Transport
 
-Offload log processing to a background thread:
+This is Konsole's standout feature for browser applications. With `useWorker: true`, log storage and HTTP transport batching move to a background Web Worker. The main thread never blocks on logging — even at high volume.
+
+No other structured logging library (Pino, Winston, Bunyan) works in the browser, let alone offers Worker offloading.
 
 ```typescript
 const logger = new Konsole({
   namespace: 'App',
   useWorker: true,
-});
-```
-
-### Benefits
-
-- **Non-blocking** - Main thread stays responsive
-- **Better performance** - Log processing in background
-- **Same API** - No code changes needed
-
-### Considerations
-
-- Only works in browsers (ignored in Node.js)
-- Use `getLogsAsync()` for log retrieval
-- Slightly higher memory overhead
-
-### When to Use
-
-✅ High-volume logging (100+ logs/second)
-✅ Performance-critical UI applications
-✅ Long-running single-page apps
-
-❌ Simple applications with low log volume
-❌ Server-side Node.js applications
-❌ When you need synchronous log access
-
-## Combining Features
-
-For maximum optimization:
-
-```typescript
-const logger = new Konsole({
-  namespace: 'HighPerformance',
-  maxLogs: 1000,          // Minimal memory
-  useWorker: true,        // Background processing
-  criteria: false,        // No console output
-  retentionPeriod: 3600000, // 1 hour retention
   transports: [{
-    name: 'backend',
+    name: 'analytics',
     url: '/api/logs',
-    batchSize: 100,       // Batch network requests
-    flushInterval: 30000, // Reduce flush frequency
-    filter: (e) => e.logtype === 'error', // Only send errors
-  }]
+    batchSize: 50,
+    flushInterval: 10000,
+  }],
 });
+
+// Main thread stays free for rendering
+logger.info('Frame rendered', { fps: 60, dt: 16.2 });
+logger.info('User interaction', { event: 'scroll', y: 1200 });
+
+// Retrieve logs from worker
+const logs = await logger.getLogsAsync();
 ```
 
-## Benchmarks
+### When to use
 
-Approximate performance characteristics:
+- High-volume browser logging (100+ logs/sec)
+- Performance-critical SPAs and animations
+- Long-running applications where main-thread responsiveness matters
+- Shipping logs to a backend from the browser without blocking UI
 
-| Operation | Without Worker | With Worker |
-|-----------|---------------|-------------|
-| `log()` | ~0.01ms | ~0.005ms |
-| `getLogs()` | ~0.1ms | N/A (use async) |
-| `getLogsAsync()` | ~0.5ms | ~1ms |
-| Memory (10k logs) | ~2MB | ~2MB + worker overhead |
+### How it works
+
+When `useWorker: true`:
+- Logs are written to **both** the main-thread buffer (for synchronous `getLogs()`) and a Web Worker
+- HTTP transports run entirely in the Worker — batching, flushing, and retries happen off the main thread
+- Use `getLogsAsync()` to retrieve the worker's copy of stored logs
+
+Silently ignored in Node.js with a console warning.
 
 ## Production Tips
 
-### 1. Disable Console Output
+### Set an appropriate level
 
 ```typescript
 const logger = new Konsole({
   namespace: 'App',
-  criteria: process.env.NODE_ENV === 'development',
+  level: process.env.NODE_ENV === 'production' ? 'warn' : 'debug',
 });
+// In production, trace/debug/info add zero overhead
 ```
 
-### 2. Use Smaller Buffers
-
-```typescript
-// Development: keep more logs for debugging
-const maxLogs = process.env.NODE_ENV === 'development' ? 10000 : 1000;
-
-const logger = new Konsole({
-  namespace: 'App',
-  maxLogs,
-});
-```
-
-### 3. Filter Expensive Operations
-
-```typescript
-const logger = new Konsole({
-  namespace: 'App',
-  criteria: (entry) => {
-    // Only print in development or for errors
-    if (process.env.NODE_ENV === 'development') return true;
-    return entry.logtype === 'error';
-  },
-});
-```
-
-### 4. Batch Transport Requests
+### Filter transports
 
 ```typescript
 {
-  name: 'backend',
+  name: 'errors-only',
   url: '/api/logs',
-  batchSize: 100,       // Wait for 100 logs
-  flushInterval: 60000, // Or flush every minute
+  filter: (e) => e.levelValue >= 50,
+  batchSize: 100,
+  flushInterval: 60000,
 }
 ```
 
-### 5. Clean Up Loggers
+### Flush before exit
 
 ```typescript
-// In React
+process.on('SIGTERM', async () => {
+  await logger.flushTransports();
+  process.exit(0);
+});
+```
+
+### Clean up in components
+
+```typescript
 useEffect(() => {
   const logger = new Konsole({ namespace: 'Component' });
-  
-  return () => {
-    logger.destroy(); // Clean up on unmount
-  };
+  return () => { logger.destroy(); };
 }, []);
 ```
 
-## Memory Profiling
+## Running Benchmarks
 
-Monitor memory usage in your application:
-
-```typescript
-// Log memory stats periodically
-setInterval(() => {
-  const namespaces = Konsole.getNamespaces();
-  const stats = namespaces.map(ns => ({
-    namespace: ns,
-    ...Konsole.getLogger(ns).getStats(),
-  }));
-  console.table(stats);
-}, 60000);
+```bash
+npm run build
+npm run benchmark                          # Konsole only
+npm install --no-save pino winston bunyan  # install competitors
+npm run benchmark                          # full comparison
+npm run benchmark:size                     # bundle size analysis
+npm run benchmark:gc                       # with GC stats
 ```
-
-Example output:
-
-| namespace | logCount | maxLogs | memoryUsage |
-|-----------|----------|---------|-------------|
-| App | 1234 | 5000 | 24.7% |
-| Auth | 89 | 5000 | 1.8% |
-| API | 456 | 5000 | 9.1% |
-
-
-
-

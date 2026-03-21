@@ -21,7 +21,7 @@ export default defineConfig({
       { text: 'API', link: '/api/' },
       { text: 'Live Demo', link: 'https://konsole.saktichourasia.dev' },
       {
-        text: 'v3.0.0',
+        text: 'v4.0.0',
         items: [
           { text: 'Changelog', link: '/changelog' },
           { text: 'Contributing', link: '/contributing' },
@@ -44,6 +44,7 @@ export default defineConfig({
           items: [
             { text: 'Namespaces & Child Loggers', link: '/guide/namespaces' },
             { text: 'Log Levels & Output', link: '/guide/conditional-logging' },
+            { text: 'Timestamps', link: '/guide/timestamps' },
             { text: 'Transports', link: '/guide/transports' },
           ],
         },

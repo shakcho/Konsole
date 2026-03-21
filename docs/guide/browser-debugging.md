@@ -48,6 +48,20 @@ __Konsole.enableAll()
 __Konsole.disableAll()
 ```
 
+### Change Timestamp Format
+
+```javascript
+// Change timestamp format for all loggers
+__Konsole.setTimestamp('iso')
+__Konsole.setTimestamp('unixMs')
+
+// Change for a specific logger
+__Konsole.getLogger('Auth').setTimestamp('time')
+
+// Custom format function
+__Konsole.setTimestamp((d) => d.toLocaleString())
+```
+
 ## Production Debugging Workflow
 
 1. **User reports an issue**

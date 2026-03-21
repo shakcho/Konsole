@@ -33,13 +33,16 @@ Konsole solves all of these while remaining lightweight and dependency-free.
 | Numeric log levels | ❌ | ✅ |
 | Structured JSON output | ❌ | ✅ |
 | Pretty terminal output | ❌ | ✅ built-in |
+| Configurable timestamps | ❌ | ✅ (ISO, epoch, custom, nanosecond) |
 | Browser DevTools styling | ❌ | ✅ |
 | Log storage / history | ❌ | ✅ |
 | Multiple transports | ❌ | ✅ |
 | File transport | ❌ | ✅ |
-| Web Worker support | ❌ | ✅ |
+| Web Worker transport | ❌ | ✅ (non-blocking browser logging) |
 | Type safety | ❌ | ✅ |
 | Zero dependencies | ✅ | ✅ |
+| Browser + Node.js | ✅ (basic) | ✅ (structured, with DevTools tooling) |
+| Bundle (gzip) | 0 KB | ~10 KB (vs Pino ~32 KB, Winston ~70 KB) |
 
 ## Philosophy
 
@@ -54,6 +57,7 @@ Konsole solves all of these while remaining lightweight and dependency-free.
 - [Configuration](/guide/configuration) — All available options
 - [Namespaces & Child Loggers](/guide/namespaces) — Organizing logs and attaching context
 - [Log Levels & Output](/guide/conditional-logging) — Controlling what gets logged
+- [Timestamps](/guide/timestamps) — Format presets, custom functions, and nanosecond precision
 - [Transports](/guide/transports) — Sending logs to files, streams, and backends
 - [Browser Debugging](/guide/browser-debugging) — Production debugging tools
 - [Viewing Logs](/guide/viewing-logs) — Batch viewing and filtering

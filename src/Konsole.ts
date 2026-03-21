@@ -1,7 +1,8 @@
 import { CircularBuffer } from './CircularBuffer';
 import { HttpTransport } from './transports/HttpTransport';
 import { LEVELS, type LogLevelName } from './levels';
-import { createFormatter, type Formatter } from './formatter';
+import { createFormatter, resolveTimestampConfig, type Formatter, type KonsoleFormat } from './formatter';
+import { getHrTime, isBrowser } from './env';
 import type {
   LogEntry,
   Transport,
@@ -11,6 +12,8 @@ import type {
   KonsoleOptions,
   KonsoleChildOptions,
   TransportConfig,
+  TimestampFormat,
+  TimestampOptions,
   WorkerMessage,
 } from './types';
 
@@ -21,6 +24,32 @@ export type { LogEntry, Transport, Criteria, KonsolePublic, KonsoleOptions, Kons
 function isTransportConfig(t: Transport | TransportConfig): t is TransportConfig {
   return typeof (t as TransportConfig).url === 'string';
 }
+
+// ─── Hot path constants ──────────────────────────────────────────────────────
+
+/**
+ * Sentinel for "no fields" in parseArgs fast path.
+ * When this is the fields value AND buffer is disabled, we can skip
+ * creating a new object. When buffer IS enabled, addLog replaces it
+ * with a fresh `{}` so buffered entries don't share mutable state.
+ */
+const NO_FIELDS: Record<string, unknown> = Object.freeze(Object.create(null));
+
+/**
+ * Empty function used to replace disabled log methods.
+ * V8 does NOT create an arguments array when calling a function that doesn't
+ * declare rest params — so `_logNoop('msg', {fields})` is truly zero-cost.
+ */
+function _logNoop() {}
+
+/** Level values for fast comparison without LEVELS lookup. */
+const LV_TRACE = 10;
+const LV_DEBUG = 20;
+const LV_INFO  = 30;
+const LV_WARN  = 40;
+const LV_ERROR = 50;
+const LV_FATAL = 60;
+
 
 /**
  * Konsole — a lightweight, namespaced logging library for browser and Node.js.
@@ -46,6 +75,9 @@ export class Konsole implements KonsolePublic {
   private bindings: Record<string, unknown> = {};
   private criteria: Criteria;
   private formatter: Formatter;
+  private currentFormat: KonsoleFormat;
+  private timestampFormat: TimestampFormat;
+  private highResolution: boolean;
   private minLevelValue: number;
   private defaultBatchSize: number;
   private currentBatchStart: number = 0;
@@ -53,7 +85,24 @@ export class Konsole implements KonsolePublic {
   private maxLogs: number;
   private cleanupIntervalId?: ReturnType<typeof setInterval>;
   private useWorker: boolean;
-  private transports: Transport[] = []; // Transport interface from types.ts
+  private transports: Transport[] = [];
+
+  // ── Hot-path cached flags (avoid repeated checks per log call) ──
+  private _hasBindings: boolean = false;
+  private _isSilent: boolean = false;
+  private _hasTransports: boolean = false;
+  private _bufferEnabled: boolean = true;
+  /** True when there are zero consumers — silent + no buffer + no transports + no worker. */
+  private _isNoop: boolean = false;
+  /** Cached bound log functions — created once per instance, reused by _rebindMethods. */
+  private _bound!: {
+    trace: (...args: unknown[]) => void;
+    debug: (...args: unknown[]) => void;
+    info:  (...args: unknown[]) => void;
+    warn:  (...args: unknown[]) => void;
+    error: (...args: unknown[]) => void;
+    fatal: (...args: unknown[]) => void;
+  };
 
   constructor(options: KonsoleOptions = {}) {
     const {
@@ -65,14 +114,21 @@ export class Konsole implements KonsolePublic {
       retentionPeriod = 48 * 60 * 60 * 1000, // 48 hours
       cleanupInterval = 60 * 60 * 1000,        // 1 hour
       maxLogs = 10000,
+      buffer,
       useWorker = false,
       transports = [],
+      timestamp,
     } = options;
 
-    this.namespace       = namespace;
-    this.criteria        = criteria;
-    this.minLevelValue   = LEVELS[level];
-    this.formatter       = createFormatter(format);
+    const tsConfig = resolveTimestampConfig(timestamp);
+
+    this.namespace        = namespace;
+    this.criteria         = criteria;
+    this.minLevelValue    = LEVELS[level];
+    this.currentFormat    = format;
+    this.timestampFormat  = tsConfig.format;
+    this.highResolution   = tsConfig.highResolution;
+    this.formatter        = createFormatter(format, this.timestampFormat);
     this.defaultBatchSize = defaultBatchSize;
     this.retentionPeriod = retentionPeriod;
     this.maxLogs         = maxLogs;
@@ -85,23 +141,31 @@ export class Konsole implements KonsolePublic {
       );
     }
 
-    this.logs = new CircularBuffer<LogEntry>(maxLogs);
+    // Buffer defaults: on in browser (for getLogs/viewLogs/exposeToWindow), off in Node.js
+    this._bufferEnabled = buffer ?? isBrowser;
+    this.logs = new CircularBuffer<LogEntry>(this._bufferEnabled ? maxLogs : 0);
+    this._isSilent = format === 'silent' || (typeof criteria === 'boolean' && !criteria);
 
     for (const t of transports) {
       this.transports.push(isTransportConfig(t) ? new HttpTransport(t) : t);
     }
+    this._hasTransports = this.transports.length > 0;
+    this._updateNoop();
 
     if (this.useWorker) {
       // Worker only supports HTTP transports — filter out custom Transport instances
       this.initWorker(transports.filter(isTransportConfig));
     }
 
-    if (!this.useWorker) {
+    if (!this.useWorker && this._bufferEnabled) {
       this.cleanupIntervalId = setInterval(
         () => this.flushOldLogs(),
         cleanupInterval,
       );
     }
+
+    this._createBoundMethods();
+    this._rebindMethods();
 
     Konsole.instances.set(namespace, this);
     this.initGlobalFlag();
@@ -138,13 +202,20 @@ export class Konsole implements KonsolePublic {
   static exposeToWindow(): void {
     if (typeof window === 'undefined') return;
     (window as unknown as Record<string, unknown>).__Konsole = {
-      getLogger: (namespace: string = 'Global'): KonsolePublic => {
+      getLogger: (namespace: string = 'Global') => {
         const logger = Konsole.getLogger(namespace);
-        return { viewLogs: (batchSize?: number) => logger.viewLogs(batchSize) };
+        return {
+          viewLogs:     (batchSize?: number) => logger.viewLogs(batchSize),
+          setTimestamp:  (opts: TimestampFormat | TimestampOptions) => logger.setTimestamp(opts),
+          setLevel:      (level: LogLevelName) => logger.setLevel(level),
+        };
       },
-      listLoggers: () => Array.from(Konsole.instances.keys()),
-      enableAll:   () => Konsole.enableGlobalPrint(true),
-      disableAll:  () => Konsole.enableGlobalPrint(false),
+      listLoggers:  () => Array.from(Konsole.instances.keys()),
+      enableAll:    () => Konsole.enableGlobalPrint(true),
+      disableAll:   () => Konsole.enableGlobalPrint(false),
+      setTimestamp: (opts: TimestampFormat | TimestampOptions) => {
+        Konsole.instances.forEach((instance) => instance.setTimestamp(opts));
+      },
     };
   }
 
@@ -155,6 +226,8 @@ export class Konsole implements KonsolePublic {
    */
   static enableGlobalPrint(enabled: boolean): void {
     (globalThis as Record<string, unknown>)[Konsole.globalFlagName] = enabled;
+    // Rebind all registered loggers — noop methods may need to become active (or vice versa)
+    Konsole.instances.forEach((instance) => instance._rebindMethods());
   }
 
   /** Add an HTTP transport to every registered logger. */
@@ -205,7 +278,6 @@ export class Konsole implements KonsolePublic {
 
     // ── Shared references (mutations in parent are visible in child and vice-versa) ──
     child.logs      = parent.logs;      // same circular buffer
-    child.formatter = parent.formatter; // same output destination
     child.useWorker = parent.useWorker;
 
     // ── Separate array, same Transport instances (child.addTransport won't affect parent) ──
@@ -216,13 +288,33 @@ export class Konsole implements KonsolePublic {
     child.defaultBatchSize = parent.defaultBatchSize;
     child.retentionPeriod = parent.retentionPeriod;
     child.maxLogs         = parent.maxLogs;
+    child.currentFormat   = parent.currentFormat;
 
     // ── Overridable per-child values ──
     child.namespace     = options?.namespace ?? parent.namespace;
     child.minLevelValue = options?.level ? LEVELS[options.level] : parent.minLevelValue;
 
+    // ── Timestamp config (override or inherit) ──
+    if (options?.timestamp) {
+      const tsConfig = resolveTimestampConfig(options.timestamp);
+      child.timestampFormat = tsConfig.format;
+      child.highResolution  = tsConfig.highResolution;
+      child.formatter       = createFormatter(parent.currentFormat, tsConfig.format);
+    } else {
+      child.timestampFormat = parent.timestampFormat;
+      child.highResolution  = parent.highResolution;
+      child.formatter       = parent.formatter; // shared reference (existing behavior)
+    }
+
     // ── Child-own state ──
     child.bindings          = { ...parent.bindings, ...bindings }; // bindings accumulate
+    child._hasBindings      = Object.keys(child.bindings).length > 0;
+    child._isSilent         = parent._isSilent;
+    child._hasTransports    = child.transports.length > 0;
+    child._bufferEnabled    = parent._bufferEnabled;
+    child._updateNoop();
+    child._createBoundMethods();
+    child._rebindMethods();
     child.currentBatchStart = 0;
     // No cleanupIntervalId — the root logger owns retention cleanup
 
@@ -230,6 +322,10 @@ export class Konsole implements KonsolePublic {
   }
 
   // ─── Logging methods ───────────────────────────────────────────────────────
+  //
+  // These prototype methods serve as fallbacks and provide TypeScript signatures.
+  // _rebindMethods() overwrites them with own-property functions (either _logNoop
+  // or the cached bound function) for Pino-style zero-cost disabled methods.
 
   /** Level 10 — extremely verbose, disabled in most environments. */
   trace(...args: unknown[]): void { this.addLog('trace', args); }
@@ -257,11 +353,32 @@ export class Konsole implements KonsolePublic {
   /** Update the minimum log level at runtime. */
   setLevel(level: LogLevelName): void {
     this.minLevelValue = LEVELS[level];
+    this._rebindMethods();
   }
 
   /** Update the fine-grained criteria filter. @deprecated Prefer `setLevel()`. */
   setCriteria(criteria: Criteria): void {
     this.criteria = criteria;
+    this._isSilent = typeof criteria === 'boolean' && !criteria;
+    this._updateNoop();
+    this._rebindMethods();
+  }
+
+  /**
+   * Update the timestamp format at runtime. Recreates the internal formatter.
+   *
+   * @example
+   * ```ts
+   * logger.setTimestamp('iso');
+   * logger.setTimestamp({ format: 'iso', highResolution: true });
+   * logger.setTimestamp((d) => d.toLocaleString());
+   * ```
+   */
+  setTimestamp(opts: TimestampFormat | TimestampOptions): void {
+    const resolved = resolveTimestampConfig(opts);
+    this.timestampFormat = resolved.format;
+    this.highResolution  = resolved.highResolution;
+    this.formatter       = createFormatter(this.currentFormat, this.timestampFormat);
   }
 
   /**
@@ -271,6 +388,8 @@ export class Konsole implements KonsolePublic {
    */
   addTransport(transport: Transport | TransportConfig): void {
     this.transports.push(isTransportConfig(transport) ? new HttpTransport(transport) : transport);
+    this._hasTransports = true;
+    this._isNoop = false;
   }
 
   /** Flush all pending transport batches immediately. */
@@ -366,16 +485,11 @@ export class Konsole implements KonsolePublic {
 
   /**
    * Parses log call arguments into a structured { msg, fields } pair.
-   *
-   * Supported calling conventions:
-   *   logger.info('message')                       → msg='message',   fields={}
-   *   logger.info('message', { userId: 1 })        → msg='message',   fields={userId:1}
-   *   logger.info({ msg: 'message', userId: 1 })   → msg='message',   fields={userId:1}  (Pino-style)
-   *   logger.error(new Error('oops'))              → msg='oops',      fields={err: Error}
-   *   logger.info('a', 'b', 'c')                   → msg='a b c',     fields={}
+   * The two most common calling conventions are inlined in addLog() for speed;
+   * this method handles the remaining (less common) patterns.
    */
-  private parseArgs(args: unknown[]): { msg: string; fields: Record<string, unknown> } {
-    if (args.length === 0) return { msg: '', fields: {} };
+  private parseArgsSlow(args: unknown[]): { msg: string; fields: Record<string, unknown> } {
+    if (args.length === 0) return { msg: '', fields: NO_FIELDS };
 
     const first = args[0];
 
@@ -396,68 +510,91 @@ export class Konsole implements KonsolePublic {
       return { msg: String(msg), fields: rest };
     }
 
-    // Standard: string message with an optional trailing fields object
+    // Single string — already handled in fast path, but guard anyway
+    if (args.length === 1 && typeof first === 'string') {
+      return { msg: first, fields: NO_FIELDS };
+    }
+
+    // Multiple args — join as a single message string
+    return {
+      msg: args.map((a) =>
+        typeof a === 'object' && a !== null ? JSON.stringify(a) : String(a),
+      ).join(' '),
+      fields: NO_FIELDS,
+    };
+  }
+
+  private addLog(level: LogLevelName, args: unknown[]): void {
+    // Note: level check and noop check are handled by _rebindMethods —
+    // disabled methods are replaced with _logNoop and never reach here.
+
+    // ── Fast-path argument parsing ──────────────────────────────────────────
+    // Inline the two most common calling conventions to avoid the full
+    // parseArgs cascade and its intermediate object allocation.
+    let msg: string;
+    let fields: Record<string, unknown>;
+
+    const first = args[0];
+
     if (typeof first === 'string') {
-      if (
+      if (args.length === 1) {
+        // logger.info('message') — most common case
+        msg = first;
+        fields = NO_FIELDS;
+      } else if (
         args.length === 2 &&
         typeof args[1] === 'object' &&
         args[1] !== null &&
         !Array.isArray(args[1]) &&
         !(args[1] instanceof Error)
       ) {
-        return { msg: first, fields: args[1] as Record<string, unknown> };
+        // logger.info('message', { userId: 1 }) — second most common
+        msg = first;
+        fields = args[1] as Record<string, unknown>;
+      } else {
+        ({ msg, fields } = this.parseArgsSlow(args));
       }
-
-      // Multiple args — join as a single message string
-      return {
-        msg: args.map((a) =>
-          typeof a === 'object' && a !== null ? JSON.stringify(a) : String(a),
-        ).join(' '),
-        fields: {},
-      };
+    } else {
+      ({ msg, fields } = this.parseArgsSlow(args));
     }
 
-    // Fallback: serialize everything into msg
-    return {
-      msg: args.map((a) =>
-        typeof a === 'object' && a !== null ? JSON.stringify(a) : String(a),
-      ).join(' '),
-      fields: {},
-    };
-  }
+    // ── Merge bindings (skip spread when root logger has none) ──────────────
+    const mergedFields = this._hasBindings
+      ? { ...this.bindings, ...fields }
+      : fields;
 
-  private addLog(level: LogLevelName, args: unknown[]): void {
-    // Level threshold — discard early, nothing written to buffer
-    if (LEVELS[level] < this.minLevelValue) return;
-
-    const { msg, fields } = this.parseArgs(args);
+    // ── Build entry ─────────────────────────────────────────────────────────
+    // When buffered, ensure fields is a unique object (not the shared NO_FIELDS sentinel)
+    // so user code reading getLogs() can safely mutate entries.
+    const entryFields = (this._bufferEnabled && mergedFields === NO_FIELDS) ? {} : mergedFields;
 
     const entry: LogEntry = {
       msg,
       messages: args,
-      // bindings are the base; call-site fields override on collision
-      fields: { ...this.bindings, ...fields },
+      fields: entryFields,
       timestamp: new Date(),
+      hrTime: this.highResolution ? getHrTime() : undefined,
       namespace: this.namespace,
       level,
       levelValue: LEVELS[level],
-      logtype: level, // @deprecated alias
     };
 
-    // Store in the main-thread circular buffer (always synchronous)
-    this.logs.push(entry);
+    // Store in the main-thread circular buffer (browser only by default)
+    if (this._bufferEnabled) {
+      this.logs.push(entry);
+    }
 
     // Forward to Web Worker when enabled
     if (this.useWorker && Konsole.sharedWorker) {
       const serializable: SerializableLogEntry = {
         msg,
         messages: args.map((m) => (typeof m === 'object' ? JSON.stringify(m) : m)),
-        fields,
+        fields: mergedFields,
         timestamp: entry.timestamp.toISOString(),
+        hrTime: entry.hrTime,
         namespace: this.namespace,
         level,
         levelValue: LEVELS[level],
-        logtype: level,
       };
       Konsole.sharedWorker.postMessage({
         type: 'ADD_LOG',
@@ -467,28 +604,59 @@ export class Konsole implements KonsolePublic {
     }
 
     // Forward to transports (when not using worker)
-    if (!this.useWorker) {
+    if (this._hasTransports && !this.useWorker) {
       for (const transport of this.transports) {
         transport.write(entry);
       }
     }
 
-    this.outputLog(entry);
-  }
-
-  private outputLog(entry: LogEntry): void {
-    // The global flag (set via enableGlobalPrint / exposeToWindow) bypasses all filters
-    const globalOverride =
-      (globalThis as Record<string, unknown>)[Konsole.globalFlagName] === true;
-
-    if (!globalOverride) {
-      // Deprecated boolean criteria: false = silent
-      if (typeof this.criteria === 'boolean' && !this.criteria) return;
-      // Function criteria: acts as an additional filter on top of level
-      if (typeof this.criteria === 'function' && !this.criteria(entry)) return;
+    // ── Output ──────────────────────────────────────────────────────────────
+    if (this._isSilent) {
+      if ((globalThis as Record<string, unknown>)[Konsole.globalFlagName] === true) {
+        this.formatter.write(entry);
+      }
+      return;
     }
 
+    if (typeof this.criteria === 'function' && !this.criteria(entry)) return;
     this.formatter.write(entry);
+  }
+
+  private _updateNoop(): void {
+    this._isNoop = this._isSilent && !this._bufferEnabled && !this._hasTransports && !this.useWorker;
+  }
+
+  /** Create cached bound log functions — one set per instance, reused by _rebindMethods. */
+  private _createBoundMethods(): void {
+    this._bound = {
+      trace: (...args: unknown[]) => { this.addLog('trace', args); },
+      debug: (...args: unknown[]) => { this.addLog('debug', args); },
+      info:  (...args: unknown[]) => { this.addLog('info', args); },
+      warn:  (...args: unknown[]) => { this.addLog('warn', args); },
+      error: (...args: unknown[]) => { this.addLog('error', args); },
+      fatal: (...args: unknown[]) => { this.addLog('fatal', args); },
+    };
+  }
+
+  /**
+   * Pino-style method replacement.
+   * Disabled methods become `_logNoop` (empty function — V8 skips arg array creation).
+   * Enabled methods become the cached bound function from `_bound`.
+   * Called when level, transports, or noop state changes.
+   */
+  private _rebindMethods(): void {
+    // Global override forces all methods active (even on noop loggers)
+    const globalOverride = (globalThis as Record<string, unknown>)[Konsole.globalFlagName] === true;
+    const isNoop = this._isNoop && !globalOverride;
+    const min = globalOverride ? 0 : this.minLevelValue;
+
+    this.trace = (isNoop || LV_TRACE < min) ? _logNoop as typeof this.trace : this._bound.trace;
+    this.debug = (isNoop || LV_DEBUG < min) ? _logNoop as typeof this.debug : this._bound.debug;
+    this.info  = (isNoop || LV_INFO  < min) ? _logNoop as typeof this.info  : this._bound.info;
+    this.warn  = (isNoop || LV_WARN  < min) ? _logNoop as typeof this.warn  : this._bound.warn;
+    this.error = (isNoop || LV_ERROR < min) ? _logNoop as typeof this.error : this._bound.error;
+    this.fatal = (isNoop || LV_FATAL < min) ? _logNoop as typeof this.fatal : this._bound.fatal;
+    this.log   = this.info;
   }
 
   private initGlobalFlag(): void {
@@ -499,6 +667,7 @@ export class Konsole implements KonsolePublic {
 
   private flushOldLogs(): void {
     const cutoff = new Date(Date.now() - this.retentionPeriod);
+    // Accessing log.timestamp triggers the lazy getter if not yet materialized
     this.logs.retain((log) => log.timestamp > cutoff);
   }
 
@@ -519,6 +688,7 @@ export class Konsole implements KonsolePublic {
               const logs = (payload as SerializableLogEntry[]).map((e) => ({
                 ...e,
                 timestamp: new Date(e.timestamp),
+                hrTime: e.hrTime,
               }));
               callback(logs);
               Konsole.workerPendingCallbacks.delete(requestId);

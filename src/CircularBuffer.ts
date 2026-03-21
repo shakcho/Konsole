@@ -19,6 +19,7 @@ export class CircularBuffer<T> {
    * If buffer is full, oldest item is overwritten
    */
   push(item: T): void {
+    if (this.capacity === 0) return;
     this.buffer[this.tail] = item;
     this.tail = (this.tail + 1) % this.capacity;
 

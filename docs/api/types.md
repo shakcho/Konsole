@@ -12,6 +12,7 @@ type LogEntry = {
   messages: unknown[];               // original arguments (kept for compatibility)
   fields: Record<string, unknown>;   // structured key-value pairs (includes bindings)
   timestamp: Date;
+  hrTime?: number;                   // high-res nanosecond offset (when highResolution: true)
   namespace: string;
   level: LogLevelName;               // 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
   levelValue: number;                // 10 | 20 | 30 | 40 | 50 | 60
@@ -27,6 +28,7 @@ type LogEntry = {
 | `messages` | `unknown[]` | Original arguments passed to the log method |
 | `fields` | `Record<string, unknown>` | Structured key-value pairs (child bindings merged with call-site fields) |
 | `timestamp` | `Date` | When the log was created |
+| `hrTime` | `number \| undefined` | High-resolution monotonic timestamp in nanoseconds (present when `highResolution: true`) |
 | `namespace` | `string` | The logger namespace |
 | `level` | `LogLevelName` | Severity: `'trace'` `'debug'` `'info'` `'warn'` `'error'` `'fatal'` |
 | `levelValue` | `number` | Numeric severity: 10 / 20 / 30 / 40 / 50 / 60 |
@@ -105,6 +107,7 @@ interface KonsoleOptions {
   namespace?: string;
   level?: LogLevelName;
   format?: KonsoleFormat;
+  timestamp?: TimestampFormat | TimestampOptions;
   transports?: (Transport | TransportConfig)[];
   maxLogs?: number;
   defaultBatchSize?: number;
@@ -122,6 +125,7 @@ interface KonsoleOptions {
 | `namespace` | `string` | `'Global'` | Logger namespace |
 | `level` | `LogLevelName` | `'trace'` | Minimum level — entries below are discarded |
 | `format` | `KonsoleFormat` | `'auto'` | Output format (see below) |
+| `timestamp` | `TimestampFormat \| TimestampOptions` | `'datetime'` | Timestamp format (see below) |
 | `transports` | `(Transport \| TransportConfig)[]` | `[]` | External log destinations |
 | `maxLogs` | `number` | `10000` | Circular buffer capacity |
 | `defaultBatchSize` | `number` | `100` | Entries per `viewLogs()` call |
@@ -157,6 +161,7 @@ Options accepted by `logger.child()`.
 interface KonsoleChildOptions {
   namespace?: string;
   level?: LogLevelName;
+  timestamp?: TimestampFormat | TimestampOptions;
 }
 ```
 
@@ -198,6 +203,51 @@ interface TransportConfig {
 
 ---
 
+## TimestampFormat
+
+```typescript
+type TimestampFormat =
+  | 'iso'       // 2025-03-16T10:23:45.123Z
+  | 'datetime'  // 2025-03-16 10:23:45.123
+  | 'date'      // 2025-03-16
+  | 'time'      // 10:23:45.123
+  | 'unix'      // 1710583425 (epoch seconds)
+  | 'unixMs'    // 1710583425123 (epoch milliseconds)
+  | 'none'      // omit timestamp
+  | ((date: Date, hrTime?: number) => string); // custom function
+```
+
+| Preset | Output | Notes |
+|--------|--------|-------|
+| `'datetime'` | `2025-03-16 10:23:45.123` | Default for pretty, text, and browser formatters |
+| `'iso'` | `2025-03-16T10:23:45.123Z` | Default for JSON formatter; UTC |
+| `'time'` | `10:23:45.123` | Time only, local timezone |
+| `'date'` | `2025-03-16` | Date only, local timezone |
+| `'unix'` | `1710583425` | Epoch seconds |
+| `'unixMs'` | `1710583425123` | Epoch milliseconds |
+| `'none'` | *(empty)* | Omit from output |
+| `function` | Custom | Receives `Date` and optional `hrTime` (nanoseconds) |
+
+---
+
+## TimestampOptions
+
+```typescript
+interface TimestampOptions {
+  format?: TimestampFormat;     // default: 'datetime'
+  highResolution?: boolean;     // default: false
+}
+```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `format` | `TimestampFormat` | `'datetime'` | Timestamp output format |
+| `highResolution` | `boolean` | `false` | Capture nanosecond-precision timing via `process.hrtime.bigint()` (Node) or `performance.now()` (browser) |
+
+When `highResolution` is `true`, each `LogEntry` receives an `hrTime` field (nanoseconds, monotonic). The JSON formatter includes this in output as `"hrTime": 123456789`.
+
+---
+
 ## Criteria *(deprecated)*
 
 ```typescript
@@ -228,10 +278,22 @@ Used by `FileTransport` and `StreamTransport` to control the per-line serializat
 
 ## KonsolePublic
 
-Public interface surfaced by `__Konsole.getLogger()` in the browser — limits what untrusted code can do.
+Public interface surfaced by `__Konsole.getLogger()` in the browser.
 
 ```typescript
-interface KonsolePublic {
+// Per-logger interface (via __Konsole.getLogger())
+{
   viewLogs(batchSize?: number): void;
+  setTimestamp(opts: TimestampFormat | TimestampOptions): void;
+  setLevel(level: LogLevelName): void;
+}
+
+// Global interface (via __Konsole)
+{
+  getLogger(namespace?: string): { viewLogs, setTimestamp, setLevel };
+  listLoggers(): string[];
+  enableAll(): void;
+  disableAll(): void;
+  setTimestamp(opts: TimestampFormat | TimestampOptions): void; // changes all loggers
 }
 ```

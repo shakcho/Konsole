@@ -27,6 +27,17 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
   - [x] Pino-style object-first calling convention: `logger.info({ msg: '...', key: val })`
   - [x] Structured field extraction: `logger.info('msg', { key: val })` → fields spread into output
 
+- [x] **Configurable timestamps**
+  - [x] Full date+time in all formatters by default (`YYYY-MM-DD HH:MM:SS.mmm`)
+  - [x] `timestamp` option on `KonsoleOptions` and `KonsoleChildOptions`
+  - [x] Preset formats: `'datetime'`, `'iso'`, `'time'`, `'date'`, `'unix'`, `'unixMs'`, `'none'`
+  - [x] Custom function: `(date: Date, hrTime?: number) => string`
+  - [x] High-resolution timestamps via `process.hrtime.bigint()` / `performance.now()`
+  - [x] `setTimestamp()` for runtime changes
+  - [x] Browser runtime control via `__Konsole.setTimestamp()`
+  - [x] Child logger timestamp override
+  - [x] `BrowserFormatter` now renders timestamps (was previously omitted)
+
 ---
 
 ## P1 — High Impact
@@ -59,17 +70,53 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
   - [x] Unit tests: child logger binding inheritance
   - [x] Unit tests: `ConsoleTransport`, `StreamTransport`, `FileTransport`
   - [x] Unit tests: all formatters (Pretty, JSON, Text, Silent)
+  - [x] Unit tests: timestamp configuration, `formatTimestamp`, `resolveTimestampConfig`, `setTimestamp`, high-resolution timestamps
   - [ ] Integration tests: Browser environment (happy-dom) — deferred
 
 ---
 
 ## P2 — DX Wins
 
-- [ ] **Built-in pretty formatter**
-  - [ ] Colorized level labels
-  - [ ] Human-readable timestamp
-  - [ ] Indented extra fields
-  - [ ] Auto-enable in TTY / dev environments
+- [ ] **Performance benchmarks vs. existing loggers**
+  - [ ] Benchmark script comparing Konsole vs Pino vs Winston vs Bunyan
+  - [ ] Throughput: ops/sec for simple string log, string + fields, child logger log
+  - [ ] Latency: p50/p95/p99 per log call (silent mode, JSON mode, pretty mode)
+  - [ ] Bundle size comparison: minified, gzipped, dependency count, install size
+  - [ ] Memory: RSS growth over 100k/1M log entries (with and without circular buffer)
+  - [ ] Startup time: time to first log (import + construct + first `.info()`)
+  - [ ] File transport: write throughput (NDJSON lines/sec to disk)
+  - [ ] Publish results in `docs/guide/performance.md` and `benchmarks/README.md`
+  - [ ] Add `npm run benchmark` script
+  - [ ] CI job to track regressions (optional)
+
+- [ ] **Hot path optimization (close gap with Pino)**
+  - [x] Lazy Date via `Object.create(ENTRY_PROTO)` — prototype getter materializes Date on first access
+  - [x] `_hasBindings` flag — skip `{ ...bindings, ...fields }` spread for root loggers
+  - [x] `_isNoop` fast path — single boolean short-circuit before arg parsing (matches Pino disabled)
+  - [x] `buffer: false` default in Node.js — skip circular buffer push entirely
+  - [x] Inlined `parseArgs` for `(string)` and `(string, object)` — skip polymorphic cascade
+  - [x] `EMPTY_FIELDS` shared frozen object — avoid `{}` allocation for simple string logs
+  - [x] Removed deprecated `logtype` from entry construction
+  - [x] `_isSilent` / `_hasTransports` / `_bufferEnabled` cached flags
+  - [ ] **Pino-style method replacement** — replace `.info()` etc. with `noop` when level is above threshold or logger is silent. `setLevel()` / `addTransport()` re-bind all 7 methods. Eliminates remaining overhead vs Pino (function call + arg spreading + level check → just empty function return)
+  - [ ] Make `messages: args` storage opt-in or remove — costs memory per entry in buffer mode
+  - [ ] Target: achieved 7M silent, 13.7M child-no-buffer (was 3.1M / 5.1M)
+
+- [ ] **OpenTelemetry transport (OTLP/HTTP)**
+  - [ ] `OtlpTransport` that speaks OTLP/HTTP JSON protocol (no gRPC dependency)
+  - [ ] POST to `http://localhost:4318/v1/logs` (OTel Collector default) or custom endpoint
+  - [ ] Map `LogEntry` to OTLP `LogRecord` schema: `timeUnixNano`, `severityNumber`, `severityText`, `body`, `attributes`
+  - [ ] Map Konsole levels to OTLP severity numbers (trace=1, debug=5, info=9, warn=13, error=17, fatal=21)
+  - [ ] Include `hrTime` as `timeUnixNano` when available for nanosecond precision
+  - [ ] Resource attributes: `service.name` from namespace, configurable extra attributes
+  - [ ] Batching and retry (reuse `HttpTransport` patterns)
+  - [ ] Works with OTel Collector → fan out to Kibana/Elasticsearch, Grafana Loki, Prometheus, Datadog, Jaeger, etc.
+
+- [ ] **Elasticsearch bulk API transport**
+  - [ ] Direct ingest to Elasticsearch without OTel Collector middleman
+  - [ ] NDJSON bulk format: `{ "index": { "_index": "logs" } }\n{ ...logEntry }\n`
+  - [ ] Configurable index name/pattern (e.g., `logs-YYYY.MM.DD`)
+  - [ ] Authentication: API key, basic auth, bearer token
 
 - [ ] **Redaction**
   - [ ] `redact: string[]` option accepting dot-path field names
@@ -80,8 +127,12 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
   - [ ] Ship built-in `stdSerializers` for `Error`, HTTP `req`/`res`
 
 - [ ] **Graceful shutdown**
-  - [ ] `process.on('exit')`  / `SIGTERM` handler to flush pending transports
+  - [ ] `process.on('exit')` / `SIGTERM` handler to flush pending transports
   - [ ] `logger.flush()` returns a promise that resolves when all transports are drained
+
+- [ ] **Numeric epoch timestamps in JSON**
+  - [ ] Option to emit `"time": 1718448225123` (epoch ms) instead of ISO string in JSON output for fast parsing (Pino parity)
+  - [ ] Already possible via `timestamp: 'unixMs'` — document as a recommended pattern
 
 ---
 
@@ -103,6 +154,18 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
 
 - [ ] **Auto metadata in Node.js**
   - [ ] Include `pid` and `hostname` in log entries automatically (opt-out via option)
+
+- [ ] **File rotation**
+  - [ ] Size-based rotation (e.g., 10MB per file)
+  - [ ] Time-based rotation (daily, hourly)
+  - [ ] Configurable max retained files
+
+- [ ] **Loki push API transport**
+  - [ ] Native Grafana Loki ingest format (labels + log lines)
+  - [ ] Map namespace to Loki label, structured fields to JSON body
+
+- [ ] **Syslog transport (RFC 5424)**
+  - [ ] For legacy SIEM/syslog infrastructure integration
 
 ---
 

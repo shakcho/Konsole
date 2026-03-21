@@ -1,6 +1,6 @@
 import { isNode, isTTY, isBrowser } from './env';
 import { LEVELS, LEVEL_LABELS, type LogLevelName } from './levels';
-import type { LogEntry } from './types';
+import type { LogEntry, TimestampFormat, TimestampOptions } from './types';
 
 // ─── ANSI helpers ─────────────────────────────────────────────────────────────
 
@@ -41,15 +41,69 @@ const LEVEL_PAINT: Record<LogLevelName, (s: string) => string> = {
   fatal: (s) => paint(A.bold + A.brightRed, s),
 };
 
-// ─── Shared utilities ─────────────────────────────────────────────────────────
+// ─── Timestamp utilities ─────────────────────────────────────────────────────
 
-function formatTime(date: Date): string {
+/** Format local time as HH:MM:SS.mmm */
+function formatTimeHMS(date: Date): string {
   const h  = String(date.getHours()).padStart(2, '0');
   const m  = String(date.getMinutes()).padStart(2, '0');
   const s  = String(date.getSeconds()).padStart(2, '0');
   const ms = String(date.getMilliseconds()).padStart(3, '0');
   return `${h}:${m}:${s}.${ms}`;
 }
+
+/** Format local date as YYYY-MM-DD */
+function formatDateLocal(date: Date): string {
+  const y = String(date.getFullYear());
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Normalize a shorthand `TimestampFormat | TimestampOptions` value into a
+ * resolved `{ format, highResolution }` pair.
+ */
+export function resolveTimestampConfig(
+  opt?: TimestampFormat | TimestampOptions,
+): { format: TimestampFormat; highResolution: boolean } {
+  if (opt === undefined) return { format: 'datetime', highResolution: false };
+  if (typeof opt === 'string' || typeof opt === 'function') {
+    return { format: opt, highResolution: false };
+  }
+  return { format: opt.format ?? 'datetime', highResolution: opt.highResolution ?? false };
+}
+
+/**
+ * Format a `Date` (and optional high-res nanosecond offset) according to a `TimestampFormat`.
+ */
+export function formatTimestamp(
+  date: Date,
+  format: TimestampFormat,
+  hrTime?: number,
+): string {
+  if (format === 'none') return '';
+  if (typeof format === 'function') return format(date, hrTime);
+
+  switch (format) {
+    case 'iso':
+      return date.toISOString();
+    case 'datetime':
+      return `${formatDateLocal(date)} ${formatTimeHMS(date)}`;
+    case 'date':
+      return formatDateLocal(date);
+    case 'time':
+      return formatTimeHMS(date);
+    case 'unix':
+      return String(Math.floor(date.getTime() / 1000));
+    case 'unixMs':
+      return String(date.getTime());
+    default:
+      return formatTimeHMS(date);
+  }
+}
+
+// ─── Shared utilities ─────────────────────────────────────────────────────────
 
 function serializeValue(val: unknown): string {
   if (val instanceof Error) return `"${val.message}"`;
@@ -76,17 +130,27 @@ export interface Formatter {
   write(entry: LogEntry): void;
 }
 
+export interface FormatterOptions {
+  timestampFormat?: TimestampFormat;
+}
+
 // ─── PrettyFormatter ─────────────────────────────────────────────────────────
 //
 // Output (colors illustrated with brackets):
 //
-//   [gray]10:23:45.123[/]  [green bold]INF[/]  [dim][Auth][/]  message  [gray]key=val key2="hello world"[/]
-//   [gray]10:23:45.123[/]  [red bold]ERR[/]   [dim][Auth][/]  something broke  [gray]err="Connection refused"[/]
+//   [gray]2024-06-15 10:23:45.123[/]  [green bold]INF[/]  [dim][Auth][/]  message  [gray]key=val[/]
 //
 
 export class PrettyFormatter implements Formatter {
+  private tsFormat: TimestampFormat;
+
+  constructor(opts?: FormatterOptions) {
+    this.tsFormat = opts?.timestampFormat ?? 'datetime';
+  }
+
   write(entry: LogEntry): void {
-    const time   = paint(A.gray, formatTime(entry.timestamp));
+    const ts     = formatTimestamp(entry.timestamp, this.tsFormat, entry.hrTime);
+    const time   = ts ? paint(A.gray, ts) : '';
     const badge  = LEVEL_PAINT[entry.level](LEVEL_LABELS[entry.level]);
     const ns     = paint(A.dim, `[${entry.namespace}]`);
     const fields = renderFields(entry.fields);
@@ -111,15 +175,27 @@ export class PrettyFormatter implements Formatter {
 //
 
 export class JsonFormatter implements Formatter {
+  private tsFormat: TimestampFormat;
+
+  constructor(opts?: FormatterOptions) {
+    this.tsFormat = opts?.timestampFormat ?? 'iso';
+  }
+
   write(entry: LogEntry): void {
-    const line = JSON.stringify({
+    const time = formatTimestamp(entry.timestamp, this.tsFormat, entry.hrTime);
+    const obj: Record<string, unknown> = {
       level:     LEVELS[entry.level],
       levelName: entry.level,
-      time:      entry.timestamp.toISOString(),
+      time,
       namespace: entry.namespace,
       msg:       entry.msg,
       ...entry.fields,
-    });
+    };
+    if (entry.hrTime !== undefined) {
+      obj.hrTime = entry.hrTime;
+    }
+
+    const line = JSON.stringify(obj);
 
     if (isNode) {
       const dest = isStdout(entry.level) ? process.stdout : process.stderr;
@@ -136,10 +212,17 @@ export class JsonFormatter implements Formatter {
 //
 
 export class TextFormatter implements Formatter {
+  private tsFormat: TimestampFormat;
+
+  constructor(opts?: FormatterOptions) {
+    this.tsFormat = opts?.timestampFormat ?? 'datetime';
+  }
+
   write(entry: LogEntry): void {
+    const ts     = formatTimestamp(entry.timestamp, this.tsFormat, entry.hrTime);
     const fields = renderFields(entry.fields);
     const parts  = [
-      formatTime(entry.timestamp),
+      ts,
       LEVEL_LABELS[entry.level],
       `[${entry.namespace}]`,
       entry.msg,
@@ -154,8 +237,7 @@ export class TextFormatter implements Formatter {
 //
 // Uses console %c CSS styling for a polished DevTools experience:
 //
-//   [ INF ] [Auth]  message  key=val key2="hello"
-//    ↑ colored badge
+//   2024-06-15 10:23:45.123  [ INF ] [Auth]  message  key=val
 //
 
 const BROWSER_BADGE: Record<LogLevelName, string> = {
@@ -177,7 +259,14 @@ const BROWSER_CONSOLE: Record<LogLevelName, (...args: unknown[]) => void> = {
 };
 
 export class BrowserFormatter implements Formatter {
+  private tsFormat: TimestampFormat;
+
+  constructor(opts?: FormatterOptions) {
+    this.tsFormat = opts?.timestampFormat ?? 'datetime';
+  }
+
   write(entry: LogEntry): void {
+    const ts     = formatTimestamp(entry.timestamp, this.tsFormat, entry.hrTime);
     const fields = renderFields(entry.fields);
 
     // Any object args passed directly (shown as expandable in DevTools)
@@ -185,12 +274,21 @@ export class BrowserFormatter implements Formatter {
       (m): m is object => typeof m === 'object' && m !== null,
     );
 
-    let fmt = `%c ${LEVEL_LABELS[entry.level]} %c [${entry.namespace}] %c${entry.msg}`;
-    const styles: string[] = [
+    let fmt = '';
+    const styles: string[] = [];
+
+    // Timestamp (shown in a dim gray before the badge)
+    if (ts) {
+      fmt += `%c${ts} `;
+      styles.push('color:#9E9E9E;font-size:11px');
+    }
+
+    fmt += `%c ${LEVEL_LABELS[entry.level]} %c [${entry.namespace}] %c${entry.msg}`;
+    styles.push(
       BROWSER_BADGE[entry.level],
       'color:#9E9E9E;font-weight:normal',
       'color:inherit;font-weight:normal',
-    ];
+    );
 
     if (fields) {
       fmt += ` %c${fields}`;
@@ -221,20 +319,21 @@ export class SilentFormatter implements Formatter {
  *   Node.js + TTY      → PrettyFormatter   (colorized, human-readable)
  *   Node.js + non-TTY  → JsonFormatter     (newline-delimited JSON)
  */
-export function createAutoFormatter(): Formatter {
-  if (isBrowser) return new BrowserFormatter();
-  if (isTTY())   return new PrettyFormatter();
-  return new JsonFormatter();
+export function createAutoFormatter(tsFormat?: TimestampFormat): Formatter {
+  if (isBrowser) return new BrowserFormatter({ timestampFormat: tsFormat });
+  if (isTTY())   return new PrettyFormatter({ timestampFormat: tsFormat });
+  return new JsonFormatter({ timestampFormat: tsFormat });
 }
 
-export function createFormatter(format: KonsoleFormat): Formatter {
+export function createFormatter(format: KonsoleFormat, tsFormat?: TimestampFormat): Formatter {
+  const opts: FormatterOptions = { timestampFormat: tsFormat };
   switch (format) {
-    case 'pretty':  return new PrettyFormatter();
-    case 'json':    return new JsonFormatter();
-    case 'text':    return new TextFormatter();
-    case 'browser': return new BrowserFormatter();
+    case 'pretty':  return new PrettyFormatter(opts);
+    case 'json':    return new JsonFormatter(opts);
+    case 'text':    return new TextFormatter(opts);
+    case 'browser': return new BrowserFormatter(opts);
     case 'silent':  return new SilentFormatter();
-    default:        return createAutoFormatter(); // 'auto'
+    default:        return createAutoFormatter(tsFormat); // 'auto'
   }
 }
 

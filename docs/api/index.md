@@ -15,6 +15,10 @@ import {
   FileTransport,
   StreamTransport,
 
+  // Formatter utilities
+  resolveTimestampConfig,
+  formatTimestamp,
+
   // Types
   LogEntry,
   Transport,          // interface
@@ -22,6 +26,8 @@ import {
   KonsoleOptions,
   KonsoleChildOptions,
   KonsolePublic,
+  TimestampFormat,
+  TimestampOptions,
   Criteria,
   FileFormat,
 } from 'konsole-logger';
@@ -55,6 +61,7 @@ import Konsole from 'konsole-logger';
 | `fatal(...args)` | `void` | Level 60 — unrecoverable failure (stderr) |
 | `child(bindings, options?)` | `Konsole` | Create a child logger with bound fields |
 | `setLevel(level)` | `void` | Change minimum log level at runtime |
+| `setTimestamp(format)` | `void` | Change timestamp format at runtime |
 | `setCriteria(criteria)` | `void` | Change output filter at runtime *(deprecated)* |
 | `addTransport(transport)` | `void` | Add a transport to this logger |
 | `flushTransports()` | `Promise<void>` | Force-flush all transport batches |

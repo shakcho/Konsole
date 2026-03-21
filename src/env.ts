@@ -32,3 +32,20 @@ export function getGlobalFetch(): typeof fetch | undefined {
   }
   return undefined;
 }
+
+/**
+ * Returns a high-resolution monotonic timestamp in nanoseconds.
+ *
+ * - Node.js → `process.hrtime.bigint()` (nanosecond precision)
+ * - Browser → `performance.now()` × 1 000 000 (microsecond precision, converted to ns)
+ * - Fallback → `undefined`
+ */
+export function getHrTime(): number | undefined {
+  if (isNode && typeof process.hrtime?.bigint === 'function') {
+    return Number(process.hrtime.bigint());
+  }
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return Math.round(performance.now() * 1_000_000);
+  }
+  return undefined;
+}

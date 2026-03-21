@@ -1,6 +1,6 @@
 {
   "name": "konsole-logger",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "type": "module",
   "description": "Structured, namespaced logging for browser and Node.js — numeric log levels, child loggers, beautiful terminal output, flexible transports",
   "main": "./dist/konsole.umd.cjs",
@@ -27,6 +27,9 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "prepublishOnly": "npm run build",
+    "benchmark": "node benchmarks/throughput.mjs",
+    "benchmark:gc": "node --expose-gc benchmarks/throughput.mjs",
+    "benchmark:size": "node benchmarks/size.mjs",
     "site:install": "npm install --prefix site",
     "site:dev": "npm run --prefix site dev",
     "site:build": "npm run --prefix site build"

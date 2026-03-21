@@ -50,8 +50,8 @@ Konsole automatically selects the best output format for the environment:
 In a TTY terminal you'll see:
 
 ```
-10:23:45.123  INF  [MyApp]  Server started  port=3000
-10:23:45.124  ERR  [MyApp]  Database connection failed  err="Connection refused"
+2024-06-15 10:23:45.123  INF  [MyApp]  Server started  port=3000
+2024-06-15 10:23:45.124  ERR  [MyApp]  Database connection failed  err="Connection refused"
 ```
 
 ### JSON Output (pipes / CI)
