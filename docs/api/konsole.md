@@ -76,6 +76,7 @@ Konsole.exposeToWindow();
 // __Konsole.listLoggers()
 // __Konsole.enableAll()
 // __Konsole.setTimestamp('iso')   // change all loggers
+// __Konsole.disableRedaction(true)  // bypass redaction for debugging
 ```
 
 ---
@@ -224,6 +225,7 @@ Children are **not** registered in `Konsole.instances`.
 - `options.namespace` — Override namespace (default: parent's namespace)
 - `options.level` — Override minimum level (default: parent's level)
 - `options.timestamp` — Override timestamp format (default: parent's format)
+- `options.redact` — Additional field paths to redact (merged with parent's — see [Redaction](/guide/redaction))
 
 **Example:**
 ```typescript

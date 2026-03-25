@@ -15,7 +15,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 const siteUrl = 'https://konsole.saktichourasia.dev';
-const title = 'Konsole — Structured logging for browser & Node.js';
+const title = 'Console — Structured logging for browser & Node.js';
 const description = 'Zero-dependency, TypeScript-first logging library with six numeric log levels, child loggers, beautiful ANSI terminal output, browser DevTools styling, and flexible transports. Works in browser and Node.js.';
 
 export const metadata: Metadata = {
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     url: siteUrl,
     title,
     description,
-    siteName: 'Konsole',
+    siteName: 'Console',
     locale: 'en_US',
   },
   twitter: {

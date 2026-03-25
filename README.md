@@ -1,4 +1,4 @@
-# Konsole
+# Console
 
 <div align="center">
 
@@ -17,6 +17,7 @@
 - **Beautiful terminal output** — ANSI colors on TTY, NDJSON in pipes, styled badges in DevTools
 - **Configurable timestamps** — full date+time by default, ISO 8601, epoch, nanosecond precision, or custom format
 - **Child loggers** — attach request-scoped context that flows into every log line
+- **Field redaction** — mask sensitive data (`password`, `req.headers.authorization`) before any output or transport
 - **Flexible transports** — HTTP, file, stream, or console; per-transport filter and transform
 - **Circular buffer** — memory-efficient in-process log history (browser); zero-overhead in Node.js
 - **Fast** — on par with Pino, significantly faster than Winston and Bunyan, at 1/3 the bundle size
@@ -190,6 +191,63 @@ const child = logger.child(
 
 Children are ephemeral — not registered in `Konsole.instances`, share the parent's buffer.
 
+## Redaction
+
+Automatically mask sensitive fields before they reach any output, transport, or buffer:
+
+```typescript
+const logger = new Konsole({
+  namespace: 'API',
+  redact: ['password', 'user.creditCard', 'req.headers.authorization'],
+});
+
+logger.info('Login attempt', { user: 'alice', password: 'hunter2' });
+// → INF [API]  Login attempt  user=alice  password=[REDACTED]
+
+logger.info('Request', {
+  req: { headers: { authorization: 'Bearer tok', host: 'example.com' } },
+});
+// → authorization is [REDACTED], host is untouched
+```
+
+Redaction uses dot-notation for nested paths. Values are replaced with `'[REDACTED]'` before reaching the buffer, formatter, or any transport — nothing leaks.
+
+### Child logger inheritance
+
+Children always inherit their parent's redact paths and can add more. A child can never redact fewer fields than its parent:
+
+```typescript
+const parent = new Konsole({ namespace: 'App', redact: ['password'] });
+const child = parent.child({ service: 'auth' }, { redact: ['token'] });
+
+child.info('event', { password: 'secret', token: 'abc' });
+// → both password and token are [REDACTED]
+
+parent.info('event', { password: 'secret', token: 'abc' });
+// → only password is [REDACTED] — parent is unaffected by child paths
+```
+
+### Disable redaction at runtime (browser only)
+
+For debugging in DevTools, you can temporarily disable redaction to see the real values. This toggle is only available in the browser via `window.__Konsole` — it cannot be disabled in Node.js:
+
+```js
+// In DevTools console (after Konsole.exposeToWindow()):
+__Konsole.disableRedaction(true)   // show real values
+__Konsole.disableRedaction(false)  // restore redaction
+```
+
+### Advanced: using redaction utilities directly
+
+The redaction functions are exported for use in custom transports:
+
+```typescript
+import { compileRedactPaths, applyRedaction, REDACTED } from 'konsole-logger';
+
+const paths = compileRedactPaths(['password', 'req.headers.authorization']);
+const redactedEntry = applyRedaction(entry, paths);
+```
+
 ## Transports
 
 Ship logs to external destinations alongside (or instead of) console output:
@@ -259,6 +317,7 @@ new Konsole({
   level?: LogLevelName;        // default: 'trace' (no filtering)
   format?: KonsoleFormat;      // default: 'auto'
   timestamp?: TimestampFormat | TimestampOptions; // default: 'datetime'
+  redact?: string[];             // field paths to mask with '[REDACTED]'
   transports?: (Transport | TransportConfig)[];
   maxLogs?: number;            // default: 10000 (circular buffer size)
   defaultBatchSize?: number;   // default: 100 (viewLogs batch)
@@ -306,23 +365,24 @@ Konsole.exposeToWindow();
 // Then in DevTools console:
 __Konsole.getLogger('Auth').viewLogs()
 __Konsole.enableGlobalPrint(true)   // unsilence all loggers
+__Konsole.disableRedaction(true)   // show real values (debug only)
 __Konsole.setTimestamp('iso')       // switch all loggers to ISO timestamps
 __Konsole.getLogger('Auth').setTimestamp('time') // per-logger override
 ```
 
 ## Performance
 
-Konsole is designed to have minimal overhead. Unlike Pino, Winston, and Bunyan (Node.js only), Konsole works natively in the browser with Web Worker offloading for non-blocking transport processing.
+Console is designed to have minimal overhead. Unlike Pino, Winston, and Bunyan (Node.js only), Console works natively in the browser with Web Worker offloading for non-blocking transport processing.
 
 Benchmarked on Apple M2 Max, Node.js v23 (100K iterations):
 
-| Scenario | Konsole | Pino | Winston | Bunyan |
+| Scenario | Console | Pino | Winston | Bunyan |
 |---|---:|---:|---:|---:|
 | Disabled / silent | ~8M | ~7M | ~1.5M | — |
 | JSON → /dev/null | ~650K | ~470K | ~270K | ~340K |
 | Child (disabled) | ~17M | ~14M | ~2M | — |
 
-| | Konsole | Pino | Winston | Bunyan |
+| | Console | Pino | Winston | Bunyan |
 |---|---:|---:|---:|---:|
 | **Bundle (gzip)** | **~10 KB** | ~32 KB | ~70 KB | ~45 KB |
 | **Install size** | **86 KB** | 1.17 MB | 360 KB | 212 KB |
@@ -366,6 +426,6 @@ MIT © Sakti Kumar Chourasia
 
 <div align="center">
 
-🐛 [Report Bug](https://github.com/shakcho/Konsole/issues) · ✨ [Request Feature](https://github.com/shakcho/Konsole/issues)
+🐛 [Report Bug](https://github.com/shakcho/console-logger/issues) · ✨ [Request Feature](https://github.com/shakcho/console-logger/issues)
 
 </div>

@@ -1,6 +1,6 @@
 # Log Levels & Output
 
-Konsole gives you two orthogonal controls:
+Console gives you two orthogonal controls:
 
 - **`level`** — what gets *stored and processed* (threshold filter)
 - **`format`** — how stored entries are *rendered*

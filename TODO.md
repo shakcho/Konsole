@@ -1,4 +1,4 @@
-# Konsole — Improvement Roadmap
+# Console — Improvement Roadmap
 
 Goal: universal logging library (Browser + Node.js) competitive with Pino.js, with better DX.
 
@@ -77,19 +77,19 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
 
 ## P2 — DX Wins
 
-- [ ] **Performance benchmarks vs. existing loggers**
-  - [ ] Benchmark script comparing Konsole vs Pino vs Winston vs Bunyan
-  - [ ] Throughput: ops/sec for simple string log, string + fields, child logger log
-  - [ ] Latency: p50/p95/p99 per log call (silent mode, JSON mode, pretty mode)
-  - [ ] Bundle size comparison: minified, gzipped, dependency count, install size
-  - [ ] Memory: RSS growth over 100k/1M log entries (with and without circular buffer)
-  - [ ] Startup time: time to first log (import + construct + first `.info()`)
-  - [ ] File transport: write throughput (NDJSON lines/sec to disk)
-  - [ ] Publish results in `docs/guide/performance.md` and `benchmarks/README.md`
-  - [ ] Add `npm run benchmark` script
+- [x] **Performance benchmarks vs. existing loggers**
+  - [x] Benchmark script comparing Console vs Pino vs Winston vs Bunyan
+  - [x] Throughput: ops/sec for simple string log, string + fields, child logger log
+  - [x] Latency: p50/p95/p99 per log call (silent mode, JSON mode, pretty mode)
+  - [x] Bundle size comparison: minified, gzipped, dependency count, install size
+  - [x] Memory: RSS growth over 100k/1M log entries (with and without circular buffer)
+  - [x] Startup time: time to first log (import + construct + first `.info()`)
+  - [x] File transport: write throughput (NDJSON lines/sec to disk)
+  - [x] Publish results in `docs/guide/performance.md` and `benchmarks/README.md`
+  - [x] Add `npm run benchmark` script
   - [ ] CI job to track regressions (optional)
 
-- [ ] **Hot path optimization (close gap with Pino)**
+- [x] **Hot path optimization (close gap with Pino)**
   - [x] Lazy Date via `Object.create(ENTRY_PROTO)` — prototype getter materializes Date on first access
   - [x] `_hasBindings` flag — skip `{ ...bindings, ...fields }` spread for root loggers
   - [x] `_isNoop` fast path — single boolean short-circuit before arg parsing (matches Pino disabled)
@@ -98,15 +98,15 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
   - [x] `EMPTY_FIELDS` shared frozen object — avoid `{}` allocation for simple string logs
   - [x] Removed deprecated `logtype` from entry construction
   - [x] `_isSilent` / `_hasTransports` / `_bufferEnabled` cached flags
-  - [ ] **Pino-style method replacement** — replace `.info()` etc. with `noop` when level is above threshold or logger is silent. `setLevel()` / `addTransport()` re-bind all 7 methods. Eliminates remaining overhead vs Pino (function call + arg spreading + level check → just empty function return)
-  - [ ] Make `messages: args` storage opt-in or remove — costs memory per entry in buffer mode
-  - [ ] Target: achieved 7M silent, 13.7M child-no-buffer (was 3.1M / 5.1M)
+  - [x] **Pino-style method replacement** — `.info()` etc. replaced with `noop` when level is above threshold or logger is silent; `setLevel()` / `addTransport()` re-bind all 7 methods
+  - [x] Target achieved: 7M ops/sec silent, 13.7M child-no-buffer (was 3.1M / 5.1M)
+  - [ ] Make `messages: args` storage opt-in or remove — costs ~20-30 bytes per entry in buffer mode
 
 - [ ] **OpenTelemetry transport (OTLP/HTTP)**
   - [ ] `OtlpTransport` that speaks OTLP/HTTP JSON protocol (no gRPC dependency)
   - [ ] POST to `http://localhost:4318/v1/logs` (OTel Collector default) or custom endpoint
   - [ ] Map `LogEntry` to OTLP `LogRecord` schema: `timeUnixNano`, `severityNumber`, `severityText`, `body`, `attributes`
-  - [ ] Map Konsole levels to OTLP severity numbers (trace=1, debug=5, info=9, warn=13, error=17, fatal=21)
+  - [ ] Map Console levels to OTLP severity numbers (trace=1, debug=5, info=9, warn=13, error=17, fatal=21)
   - [ ] Include `hrTime` as `timeUnixNano` when available for nanosecond precision
   - [ ] Resource attributes: `service.name` from namespace, configurable extra attributes
   - [ ] Batching and retry (reuse `HttpTransport` patterns)
@@ -118,9 +118,12 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
   - [ ] Configurable index name/pattern (e.g., `logs-YYYY.MM.DD`)
   - [ ] Authentication: API key, basic auth, bearer token
 
-- [ ] **Redaction**
-  - [ ] `redact: string[]` option accepting dot-path field names
-  - [ ] Replace matched values with `[REDACTED]` before any output or transport
+- [x] **Redaction**
+  - [x] `redact: string[]` option accepting dot-path field names
+  - [x] Replace matched values with `[REDACTED]` before any output or transport
+  - [x] Child loggers inherit parent redact paths (union merge, security invariant)
+  - [x] Browser-only `disableRedaction()` runtime toggle via `exposeToWindow()`
+  - [x] Exported utilities: `compileRedactPaths()`, `applyRedaction()`, `REDACTED`
 
 - [ ] **Serializers**
   - [ ] `serializers` option: `{ err: ..., req: ..., res: ... }`
@@ -129,6 +132,24 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
 - [ ] **Graceful shutdown**
   - [ ] `process.on('exit')` / `SIGTERM` handler to flush pending transports
   - [ ] `logger.flush()` returns a promise that resolves when all transports are drained
+
+- [ ] **`DEBUG=*` namespace filtering**
+  - [ ] Support `DEBUG=konsole:*` env var pattern (like the `debug` npm package)
+  - [ ] Allows namespace-level enable/disable without code changes — drop-in upgrade path for teams using `debug`
+  - [ ] Glob/wildcard matching: `DEBUG=konsole:http,konsole:db` or `DEBUG=*`
+
+- [ ] **Transport error observability**
+  - [ ] `HttpTransport` `onError(err, droppedEntries)` callback option — currently silent on failure after retries
+  - [ ] `maxQueueSize` option on `HttpTransport` — retry queue is currently unbounded; cap with `'drop-oldest'` / `'drop-newest'` overflow strategy
+  - [ ] `StreamTransport`: check `stream.write()` return value and handle backpressure — currently ignored, can lose logs under high throughput
+
+- [ ] **Input validation**
+  - [ ] `setLevel()` should throw (or warn) on invalid level strings — currently silent undefined behavior
+  - [ ] Guard `child()` against non-serializable bindings (circular refs will throw in worker `postMessage`)
+
+- [ ] **Auto metadata in Node.js** *(moved from P3 — low effort, high aggregator compat)*
+  - [ ] Include `pid` and `hostname` in JSON log entries automatically (Pino parity, used by Datadog/Loki for routing)
+  - [ ] Opt-out via `{ pid: false, hostname: false }` on `KonsoleOptions`
 
 - [ ] **Numeric epoch timestamps in JSON**
   - [ ] Option to emit `"time": 1718448225123` (epoch ms) instead of ISO string in JSON output for fast parsing (Pino parity)
@@ -141,6 +162,7 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
 - [ ] **AsyncLocalStorage context propagation** (Node.js)
   - [ ] `Konsole.runWithContext(store, fn)` to bind context to async scope
   - [ ] Auto-merge context store into every log entry within the scope
+  - [ ] Enables automatic `requestId` propagation in Express/Fastify middleware without passing child loggers manually
 
 - [ ] **API ergonomics cleanup**
   - [ ] Rename `criteria` → keep as advanced `filter` option, `level` handles common case
@@ -151,9 +173,6 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
   - [ ] Move worker logic to `src/worker.ts` as a proper TypeScript module
   - [ ] Bundle with Vite `?worker` import or separate entry point
   - [ ] Remove `getWorkerCode()` string template from `Konsole.ts`
-
-- [ ] **Auto metadata in Node.js**
-  - [ ] Include `pid` and `hostname` in log entries automatically (opt-out via option)
 
 - [ ] **File rotation**
   - [ ] Size-based rotation (e.g., 10MB per file)

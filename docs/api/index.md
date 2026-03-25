@@ -1,6 +1,6 @@
 # API Reference
 
-Detailed documentation for all Konsole exports.
+Detailed documentation for all Console exports.
 
 ## Exports
 
@@ -18,6 +18,11 @@ import {
   // Formatter utilities
   resolveTimestampConfig,
   formatTimestamp,
+
+  // Redaction utilities
+  compileRedactPaths,
+  applyRedaction,
+  REDACTED,
 
   // Types
   LogEntry,

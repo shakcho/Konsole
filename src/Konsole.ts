@@ -3,6 +3,7 @@ import { HttpTransport } from './transports/HttpTransport';
 import { LEVELS, type LogLevelName } from './levels';
 import { createFormatter, resolveTimestampConfig, type Formatter, type KonsoleFormat } from './formatter';
 import { getHrTime, isBrowser } from './env';
+import { compileRedactPaths, applyRedaction } from './redact';
 import type {
   LogEntry,
   Transport,
@@ -69,6 +70,8 @@ export class Konsole implements KonsolePublic {
   private static globalFlagName = '__KonsolePrintEnabled__';
   private static sharedWorker: Worker | null = null;
   private static workerPendingCallbacks: Map<string, (logs: LogEntry[]) => void> = new Map();
+  /** Browser-only runtime flag. When true, redaction is bypassed for all loggers. */
+  private static _redactionDisabled: boolean = false;
 
   private logs: CircularBuffer<LogEntry>;
   private namespace: string;
@@ -86,6 +89,9 @@ export class Konsole implements KonsolePublic {
   private cleanupIntervalId?: ReturnType<typeof setInterval>;
   private useWorker: boolean;
   private transports: Transport[] = [];
+
+  /** Pre-compiled redaction path segments. Empty array = no redaction. */
+  private _redactPaths: string[][] = [];
 
   // ── Hot-path cached flags (avoid repeated checks per log call) ──
   private _hasBindings: boolean = false;
@@ -118,6 +124,7 @@ export class Konsole implements KonsolePublic {
       useWorker = false,
       transports = [],
       timestamp,
+      redact = [],
     } = options;
 
     const tsConfig = resolveTimestampConfig(timestamp);
@@ -163,6 +170,8 @@ export class Konsole implements KonsolePublic {
         cleanupInterval,
       );
     }
+
+    this._redactPaths = compileRedactPaths(redact);
 
     this._createBoundMethods();
     this._rebindMethods();
@@ -215,6 +224,17 @@ export class Konsole implements KonsolePublic {
       disableAll:   () => Konsole.enableGlobalPrint(false),
       setTimestamp: (opts: TimestampFormat | TimestampOptions) => {
         Konsole.instances.forEach((instance) => instance.setTimestamp(opts));
+      },
+      /**
+       * Disable or re-enable field redaction at runtime (browser only).
+       * Useful for debugging in DevTools — exposes redacted values in log output.
+       *
+       * @example
+       * __Konsole.disableRedaction(true)   // show real values
+       * __Konsole.disableRedaction(false)  // restore redaction (default)
+       */
+      disableRedaction: (disabled: boolean) => {
+        Konsole._redactionDisabled = disabled;
       },
     };
   }
@@ -305,6 +325,12 @@ export class Konsole implements KonsolePublic {
       child.highResolution  = parent.highResolution;
       child.formatter       = parent.formatter; // shared reference (existing behavior)
     }
+
+    // ── Redact paths: child inherits parent paths, optionally adds more (union, deduplicated) ──
+    const parentPathStrs = parent._redactPaths.map((segs) => segs.join('.'));
+    const childPathStrs  = options?.redact ?? [];
+    const mergedPaths    = [...new Set([...parentPathStrs, ...childPathStrs])];
+    child._redactPaths   = compileRedactPaths(mergedPaths);
 
     // ── Child-own state ──
     child.bindings          = { ...parent.bindings, ...bindings }; // bindings accumulate
@@ -568,7 +594,7 @@ export class Konsole implements KonsolePublic {
     // so user code reading getLogs() can safely mutate entries.
     const entryFields = (this._bufferEnabled && mergedFields === NO_FIELDS) ? {} : mergedFields;
 
-    const entry: LogEntry = {
+    const rawEntry: LogEntry = {
       msg,
       messages: args,
       fields: entryFields,
@@ -578,6 +604,13 @@ export class Konsole implements KonsolePublic {
       level,
       levelValue: LEVELS[level],
     };
+
+    // Apply redaction before any consumer sees the entry.
+    // The disable flag is only settable via window.__Konsole (browser-only API),
+    // so in Node.js _redactionDisabled is always false.
+    const entry = this._redactPaths.length > 0 && !Konsole._redactionDisabled
+      ? applyRedaction(rawEntry, this._redactPaths)
+      : rawEntry;
 
     // Store in the main-thread circular buffer (browser only by default)
     if (this._bufferEnabled) {
@@ -589,7 +622,7 @@ export class Konsole implements KonsolePublic {
       const serializable: SerializableLogEntry = {
         msg,
         messages: args.map((m) => (typeof m === 'object' ? JSON.stringify(m) : m)),
-        fields: mergedFields,
+        fields: entry.fields,
         timestamp: entry.timestamp.toISOString(),
         hrTime: entry.hrTime,
         namespace: this.namespace,

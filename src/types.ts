@@ -222,6 +222,18 @@ export interface KonsoleOptions {
    * ```
    */
   timestamp?: TimestampFormat | TimestampOptions;
+
+  /**
+   * Field paths to redact from every log entry before any output or transport.
+   * Accepts dot-notation paths for nested fields.
+   * Matched values are replaced with `'[REDACTED]'`.
+   *
+   * @example
+   * ```ts
+   * new Konsole({ redact: ['password', 'user.creditCard', 'req.headers.authorization'] })
+   * ```
+   */
+  redact?: string[];
 }
 
 /**
@@ -242,6 +254,13 @@ export interface KonsoleChildOptions {
   level?: LogLevelName;
   /** Override the timestamp format for this child logger. */
   timestamp?: TimestampFormat | TimestampOptions;
+
+  /**
+   * Additional paths to redact in this child logger.
+   * These are **merged** (union) with the parent's redact paths —
+   * a child can never redact fewer fields than its parent.
+   */
+  redact?: string[];
 }
 
 // ─── Worker message protocol ──────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 # Browser Debugging
 
-Konsole can expose itself to the browser window, allowing you to debug production applications from the developer console.
+Console can expose itself to the browser window, allowing you to debug production applications from the developer console.
 
 ## Setup
 
@@ -48,6 +48,20 @@ __Konsole.enableAll()
 __Konsole.disableAll()
 ```
 
+### Disable Redaction (Debug Only)
+
+```javascript
+// Temporarily show real values instead of [REDACTED]
+__Konsole.disableRedaction(true)
+
+// Re-enable redaction
+__Konsole.disableRedaction(false)
+```
+
+::: warning
+This toggle is only available in the browser. In Node.js, redaction is always enforced and cannot be disabled.
+:::
+
 ### Change Timestamp Format
 
 ```javascript
@@ -88,10 +102,10 @@ __Konsole.setTimestamp((d) => d.toLocaleString())
 ## Security Considerations
 
 ::: warning
-Exposing Konsole to the window gives anyone with console access the ability to view logs. Consider:
+Exposing Console to the window gives anyone with console access the ability to view logs. Consider:
 
 - Only expose in development/staging environments
-- Don't log sensitive data (passwords, tokens, PII)
+- Use the [`redact` option](/guide/redaction) to mask sensitive fields (passwords, tokens, PII)
 - Use environment checks before exposing
 :::
 

@@ -1,6 +1,6 @@
 # Configuration
 
-Konsole accepts options to customize its behavior. The most commonly used ones are `namespace`, `level`, and `format`.
+Console accepts options to customize its behavior. The most commonly used ones are `namespace`, `level`, and `format`.
 
 ## Constructor Options
 
@@ -145,6 +145,24 @@ logger.setTimestamp('unixMs');
 logger.setTimestamp({ format: 'iso', highResolution: true });
 logger.setTimestamp((d) => d.toLocaleString('ja-JP'));
 ```
+
+---
+
+### redact
+
+- **Type:** `string[]`
+- **Default:** `[]`
+
+Field paths to redact from every log entry before any output or transport. Accepts dot-notation for nested fields. Matched values are replaced with `'[REDACTED]'`.
+
+```typescript
+const logger = new Konsole({
+  namespace: 'App',
+  redact: ['password', 'token', 'req.headers.authorization'],
+});
+```
+
+Redaction is applied before entries reach the buffer, transports, or formatter — nothing leaks. See the [Redaction Guide](/guide/redaction) for child inheritance, nested paths, and runtime disable.
 
 ---
 
@@ -322,6 +340,7 @@ const logger = new Konsole({
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'warn',
   format: 'auto',             // pretty in terminal, JSON in CI
   timestamp: 'iso',           // ISO 8601 timestamps
+  redact: ['password', 'user.ssn', 'req.headers.authorization'],
   defaultBatchSize: 50,
   retentionPeriod: 12 * 60 * 60 * 1000, // 12 hours
   cleanupInterval: 15 * 60 * 1000,

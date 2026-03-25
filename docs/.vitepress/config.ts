@@ -1,14 +1,14 @@
 import { defineConfig } from 'vitepress';
 
 export default defineConfig({
-  title: 'Konsole',
+  title: 'Console',
   description: 'Structured, namespaced logging for browser and Node.js',
   appearance: 'dark',
   base: '/docs/',
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
-    ['meta', { name: 'description', content: 'Konsole is a structured, namespaced logging library for JavaScript and TypeScript. Works in browser and Node.js. Numeric log levels, child loggers, beautiful terminal output, and flexible transports.' }],
+    ['meta', { name: 'description', content: 'Console is a structured, namespaced logging library for JavaScript and TypeScript. Works in browser and Node.js. Numeric log levels, child loggers, beautiful terminal output, and flexible transports.' }],
     ['meta', { name: 'keywords', content: 'javascript logger, typescript logger, structured logging, namespaced logging, browser logging, node logger, child logger, pino, pino alternative, ndjson, log levels' }],
     ['meta', { property: 'og:description', content: 'Structured, namespaced logging for browser and Node.js. Numeric log levels, child loggers, beautiful terminal output, and flexible transports.' }],
   ],
@@ -21,7 +21,7 @@ export default defineConfig({
       { text: 'API', link: '/api/' },
       { text: 'Live Demo', link: 'https://konsole.saktichourasia.dev' },
       {
-        text: 'v4.0.0',
+        text: 'v4.1.0',
         items: [
           { text: 'Changelog', link: '/changelog' },
           { text: 'Contributing', link: '/contributing' },
@@ -34,7 +34,7 @@ export default defineConfig({
         {
           text: 'Introduction',
           items: [
-            { text: 'What is Konsole?', link: '/guide/' },
+            { text: 'What is Console?', link: '/guide/' },
             { text: 'Getting Started', link: '/guide/getting-started' },
             { text: 'Configuration', link: '/guide/configuration' },
           ],
@@ -45,6 +45,7 @@ export default defineConfig({
             { text: 'Namespaces & Child Loggers', link: '/guide/namespaces' },
             { text: 'Log Levels & Output', link: '/guide/conditional-logging' },
             { text: 'Timestamps', link: '/guide/timestamps' },
+            { text: 'Redaction', link: '/guide/redaction' },
             { text: 'Transports', link: '/guide/transports' },
           ],
         },
@@ -70,7 +71,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/shakcho/Konsole' },
+      { icon: 'github', link: 'https://github.com/shakcho/console-logger' },
     ],
 
     footer: {

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-03-23
+
+### Added
+
+- **Field redaction** — New `redact` option on `KonsoleOptions` and `KonsoleChildOptions`
+  - Accepts dot-notation field paths: `redact: ['password', 'req.headers.authorization']`
+  - Values replaced with `'[REDACTED]'` before any output, transport, or buffer
+  - Children inherit parent redact paths (security invariant — cannot opt out) and can add more
+  - Applied after bindings merge, before all consumers
+  - Original caller objects are never mutated
+  - New exports: `compileRedactPaths()`, `applyRedaction()`, `REDACTED`
+
+- **Browser runtime redaction toggle** — `__Konsole.disableRedaction(true/false)` via `exposeToWindow()`
+  - Temporarily bypass redaction in DevTools for debugging
+  - Not available in Node.js — server-side redaction is always enforced
+
+---
+
 ## [4.0.0] - 2026-03-19
 
 ### Added

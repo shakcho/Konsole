@@ -2,19 +2,19 @@
 layout: home
 
 hero:
-  name: "Konsole"
+  name: "Console"
   text: "Logging for Browser & Node.js"
   tagline: Structured, namespaced, TypeScript-first logging with beautiful terminal output and flexible transports
   image:
     src: /logo.svg
-    alt: Konsole
+    alt: Console
   actions:
     - theme: brand
       text: Get Started
       link: /guide/getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/shakcho/Konsole
+      link: https://github.com/shakcho/console-logger
 
 features:
   - icon: 🌐
@@ -29,6 +29,9 @@ features:
   - icon: ⏱️
     title: Configurable Timestamps
     details: Full date+time by default. ISO 8601, epoch seconds/ms, time-only, or custom functions. High-resolution nanosecond precision. Change format at runtime in the browser.
+  - icon: 🔒
+    title: Field Redaction
+    details: "Mask sensitive data (passwords, tokens, PII) with redact: ['password', 'req.headers.authorization']. Applied before any output, transport, or buffer — nothing leaks. Children inherit parent paths."
   - icon: 🚀
     title: Flexible Transports
     details: Ship logs to any destination — HTTP endpoints, log files, writable streams, or the console. Batching, retry, and filtering built in.
