@@ -40,7 +40,7 @@ logger.error('Database connection failed', { err }); // level 50
 logger.fatal('Out of memory');            // level 60
 ```
 
-Konsole automatically selects the best output format for the environment:
+Console automatically selects the best output format for the environment:
 - **Terminal (TTY)** → colorized, human-readable pretty output
 - **CI / pipes** → newline-delimited JSON (compatible with Datadog, Loki, CloudWatch)
 - **Browser** → styled badges in DevTools via `%c`
@@ -76,7 +76,7 @@ const logger = new Konsole({
 
 ## Structured Logging
 
-All three calling styles work — Konsole handles them automatically:
+All three calling styles work — Console handles them automatically:
 
 ```typescript
 // 1. Simple string
@@ -113,6 +113,22 @@ Change the level at runtime:
 ```typescript
 logger.setLevel('debug'); // now debug and above pass
 ```
+
+## Redacting Sensitive Fields
+
+Mask sensitive data before it reaches any output, transport, or buffer:
+
+```typescript
+const logger = new Konsole({
+  namespace: 'API',
+  redact: ['password', 'token', 'req.headers.authorization'],
+});
+
+logger.info('Login', { user: 'alice', password: 'hunter2' });
+// → password=[REDACTED]  user=alice
+```
+
+See the [Redaction Guide](/guide/redaction) for nested paths, child inheritance, and more.
 
 ## Child Loggers
 
@@ -169,7 +185,7 @@ const logger = new Konsole({
 
 ## Browser Debugging
 
-Expose Konsole to the browser console for production debugging:
+Expose Console to the browser console for production debugging:
 
 ```typescript
 // In your app initialization
@@ -188,6 +204,7 @@ __Konsole.enableAll()
 
 - Learn about [Namespaces & Child Loggers](/guide/namespaces) for organizing logs and attaching request context
 - Explore [Log Levels & Output](/guide/conditional-logging) for controlling what gets logged and how
+- Configure [Redaction](/guide/redaction) to mask passwords, tokens, and PII
 - Set up [Transports](/guide/transports) for file, stream, and HTTP log destinations
 - Set up [Browser Debugging](/guide/browser-debugging) for production use
 - Optimize with [Performance Tips](/guide/performance)

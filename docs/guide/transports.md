@@ -4,7 +4,7 @@ Transports forward log entries to external destinations — HTTP endpoints, log 
 
 ## Transport Types
 
-Konsole ships four transport implementations:
+Console ships four transport implementations:
 
 | Class | Destination | Environment |
 |-------|-------------|-------------|

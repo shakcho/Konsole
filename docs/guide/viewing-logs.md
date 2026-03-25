@@ -1,6 +1,6 @@
 # Viewing Logs
 
-Konsole stores all logs in memory, allowing you to inspect them later.
+Console stores all logs in memory, allowing you to inspect them later.
 
 ## Using viewLogs()
 

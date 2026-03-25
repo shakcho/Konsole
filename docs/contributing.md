@@ -1,13 +1,13 @@
 # Contributing
 
-Thank you for your interest in contributing to Konsole! This document provides guidelines for contributing.
+Thank you for your interest in contributing to Console! This document provides guidelines for contributing.
 
 ## Development Setup
 
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/shakcho/Konsole.git
+git clone https://github.com/shakcho/console-logger.git
 cd konsole
 ```
 
@@ -81,7 +81,7 @@ Use clear, descriptive commit messages:
 
 When reporting issues, please include:
 
-1. Konsole version
+1. Console version
 2. Browser/Node.js version
 3. Steps to reproduce
 4. Expected vs actual behavior

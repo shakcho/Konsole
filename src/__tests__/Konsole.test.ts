@@ -464,4 +464,119 @@ describe('Konsole', () => {
       writeSpy.mockRestore();
     });
   });
+
+  // ─── Redaction ───────────────────────────────────────────────────────────────
+
+  describe('redact', () => {
+    it('redacts a top-level field before transport write', () => {
+      const spy = new SpyTransport();
+      const logger = makeSilentLogger({ namespace: 'RedactTest1', transports: [spy], redact: ['password'] });
+      logger.info('login', { user: 'alice', password: 'hunter2' });
+      expect(spy.entries[0].fields.password).toBe('[REDACTED]');
+      expect(spy.entries[0].fields.user).toBe('alice');
+    });
+
+    it('redacts a nested field', () => {
+      const spy = new SpyTransport();
+      const logger = makeSilentLogger({ namespace: 'RedactTest2', transports: [spy], redact: ['req.headers.authorization'] });
+      logger.info('request', { req: { headers: { authorization: 'Bearer tok', 'content-type': 'application/json' } } });
+      const headers = (spy.entries[0].fields.req as Record<string, unknown>).headers as Record<string, unknown>;
+      expect(headers.authorization).toBe('[REDACTED]');
+      expect(headers['content-type']).toBe('application/json');
+    });
+
+    it('stores redacted entry in the buffer', () => {
+      const logger = makeSilentLogger({ namespace: 'RedactTest3', redact: ['token'] });
+      logger.info('event', { token: 'abc', id: 1 });
+      const [entry] = logger.getLogs();
+      expect(entry.fields.token).toBe('[REDACTED]');
+      expect(entry.fields.id).toBe(1);
+    });
+
+    it('does not mutate the caller fields object', () => {
+      const spy = new SpyTransport();
+      const logger = makeSilentLogger({ namespace: 'RedactTest4', transports: [spy], redact: ['token'] });
+      const callFields = { token: 'abc', id: 1 };
+      logger.info('api call', callFields);
+      expect(callFields.token).toBe('abc');
+    });
+
+    it('does nothing when the redacted path does not exist on the entry', () => {
+      const spy = new SpyTransport();
+      const logger = makeSilentLogger({ namespace: 'RedactTest5', transports: [spy], redact: ['password'] });
+      logger.info('event', { user: 'alice' });
+      expect(spy.entries[0].fields).toEqual({ user: 'alice' });
+    });
+
+    it('child inherits parent redact paths', () => {
+      const spy = new SpyTransport();
+      const parent = makeSilentLogger({ namespace: 'RedactTest6', transports: [spy], redact: ['password'] });
+      const child = parent.child({ service: 'auth' });
+      child.info('login', { user: 'bob', password: 'secret' });
+      expect(spy.entries[0].fields.password).toBe('[REDACTED]');
+      expect(spy.entries[0].fields.user).toBe('bob');
+    });
+
+    it('child can add additional redact paths on top of parent', () => {
+      const spy = new SpyTransport();
+      const parent = makeSilentLogger({ namespace: 'RedactTest7', transports: [spy], redact: ['password'] });
+      const child = parent.child({}, { redact: ['token'] });
+      child.info('login', { user: 'bob', password: 'secret', token: 'abc' });
+      expect(spy.entries[0].fields.password).toBe('[REDACTED]');
+      expect(spy.entries[0].fields.token).toBe('[REDACTED]');
+      expect(spy.entries[0].fields.user).toBe('bob');
+    });
+
+    it('parent is not affected by child redact paths', () => {
+      const spy = new SpyTransport();
+      const parent = makeSilentLogger({ namespace: 'RedactTest8', transports: [spy], redact: ['password'] });
+      parent.child({}, { redact: ['token'] });
+      parent.info('login', { password: 'secret', token: 'abc' });
+      expect(spy.entries[0].fields.password).toBe('[REDACTED]');
+      expect(spy.entries[0].fields.token).toBe('abc'); // parent does not redact token
+    });
+
+    it('redact path through a binding field works', () => {
+      const spy = new SpyTransport();
+      const parent = makeSilentLogger({ namespace: 'RedactTest9', transports: [spy], redact: ['apiKey'] });
+      const child = parent.child({ apiKey: 'supersecret', service: 'payments' });
+      child.info('charge');
+      expect(spy.entries[0].fields.apiKey).toBe('[REDACTED]');
+      expect(spy.entries[0].fields.service).toBe('payments');
+    });
+
+    it('empty redact array behaves identically to omitting the option', () => {
+      const spy = new SpyTransport();
+      const logger = makeSilentLogger({ namespace: 'RedactTest10', transports: [spy], redact: [] });
+      logger.info('event', { password: 'secret' });
+      expect(spy.entries[0].fields.password).toBe('secret');
+    });
+
+    it('redacted output does not contain the sensitive value in JSON format', () => {
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      const logger = new Konsole({ namespace: 'RedactTest11', format: 'json', redact: ['password'] });
+      logger.info('login', { user: 'alice', password: 'hunter2' });
+      const output = String(writeSpy.mock.calls[0][0]);
+      const parsed = JSON.parse(output.trim());
+      expect(parsed.password).toBe('[REDACTED]');
+      expect(output).not.toContain('hunter2');
+      writeSpy.mockRestore();
+    });
+
+    it('_redactionDisabled flag bypasses redaction when set', () => {
+      const spy = new SpyTransport();
+      const logger = makeSilentLogger({ namespace: 'RedactTest12', transports: [spy], redact: ['password'] });
+
+      // Simulate what window.__Konsole.disableRedaction(true) does
+      (Konsole as unknown as Record<string, unknown>)['_redactionDisabled'] = true;
+      logger.info('login', { password: 'hunter2' });
+      expect(spy.entries[0].fields.password).toBe('hunter2'); // raw value visible
+
+      // Restore
+      (Konsole as unknown as Record<string, unknown>)['_redactionDisabled'] = false;
+      spy.entries = [];
+      logger.info('login', { password: 'hunter2' });
+      expect(spy.entries[0].fields.password).toBe('[REDACTED]'); // redaction back on
+    });
+  });
 });

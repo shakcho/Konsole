@@ -8,7 +8,7 @@ import type { LogEntry } from 'konsole-logger';
 
 const LINKS = {
   docs:      '/docs',
-  github:    'https://github.com/shakcho/Konsole',
+  github:    'https://github.com/shakcho/console-logger',
   authorGh:  'https://github.com/shakcho',
   portfolio: 'https://saktichourasia.dev',
 };
@@ -478,7 +478,7 @@ export default function KonsoleSite() {
     <>
       {/* Top nav */}
       <nav style={s.topNav}>
-        <span style={s.topNavBrand}>konsole<span style={{ color: '#6366f1' }}>.ts</span></span>
+        <span style={s.topNavBrand}>console<span style={{ color: '#6366f1' }}>.logger</span></span>
         <div style={s.topNavLinks}>
           <a style={s.topNavLink} href={LINKS.docs} target="_blank" rel="noreferrer">Docs</a>
           <a style={s.topNavLink} href={LINKS.github} target="_blank" rel="noreferrer">GitHub</a>
@@ -490,7 +490,7 @@ export default function KonsoleSite() {
         {/* Header */}
         <header style={s.header}>
           <div style={s.headerBadge}>Browser-first · Node.js ready · Web Worker transport</div>
-          <h1 style={s.title}>Konsole</h1>
+          <h1 style={s.title}>Console</h1>
           <p style={s.subtitle}>
             Structured, namespaced logging built for the browser and Node.js. Web Worker transport
             keeps your UI thread free. Child loggers, configurable timestamps, and flexible transports
@@ -640,7 +640,7 @@ export default function KonsoleSite() {
         <section style={{ ...s.section, marginTop: 64 }}>
           <h2 style={s.sectionTitle}>How it Works</h2>
           <p style={s.prose}>
-            Konsole works in browser and Node.js. It automatically picks the best output format
+            Console works in browser and Node.js. It automatically picks the best output format
             for each environment. In browsers, logs are stored in a circular buffer for DevTools inspection.
             In Node.js, disabled levels add zero overhead — no buffer, no allocations.
           </p>
@@ -652,6 +652,7 @@ export default function KonsoleSite() {
               { icon: '🏷️', title: 'Child loggers', body: 'logger.child({ requestId }) creates an ephemeral child that injects context into every line it produces. Bindings accumulate through nesting.' },
               { icon: '⏱️', title: 'Configurable timestamps', body: "Full date+time by default. Presets: ISO 8601, epoch seconds/ms, time-only. Custom functions. Nanosecond precision via highResolution. Change format at runtime." },
               { icon: '🎨', title: 'Auto formatting', body: "TTY terminal → ANSI pretty. Pipe / CI → NDJSON. Browser → styled %c badges. One format: 'auto' option handles it all." },
+              { icon: '🔒', title: 'Field redaction', body: "Mask sensitive data with redact: ['password', 'req.headers.authorization']. Applied before output, transports, and buffer. Children inherit parent paths. Disable at runtime in browser DevTools for debugging." },
               { icon: '🚚', title: 'Transports', body: 'HttpTransport, FileTransport, StreamTransport, ConsoleTransport. Add multiple to one logger. Filter and transform per transport.' },
               { icon: '🧵', title: 'Web Worker transport', body: 'useWorker: true moves log storage and HTTP batching off the main thread. Your UI never blocks on logging — even at high volume. Browser-exclusive feature no other logger offers.' },
               { icon: '💾', title: 'In-browser log history', body: 'Circular buffer stores logs in memory for DevTools inspection via getLogs() and exposeToWindow(). In Node.js, buffer is off by default for maximum throughput.' },
@@ -671,7 +672,7 @@ export default function KonsoleSite() {
           <h2 style={s.sectionTitle}>Benchmarks</h2>
           <p style={s.prose}>
             Measured on Apple M2 Max, Node.js v23, 100K iterations.
-            Pino, Winston, and Bunyan are Node.js only — Konsole works in both browser and Node.js.
+            Pino, Winston, and Bunyan are Node.js only — Console works in both browser and Node.js.
             Run <code style={s.inlineCode}>npm run benchmark</code> to reproduce.
           </p>
 
@@ -682,7 +683,7 @@ export default function KonsoleSite() {
               <thead>
                 <tr>
                   <th style={{ ...s.th, textAlign: 'left' }}>Scenario</th>
-                  <th style={{ ...s.th, ...s.thHighlight }}>Konsole</th>
+                  <th style={{ ...s.th, ...s.thHighlight }}>Console</th>
                   <th style={s.th}>Pino</th>
                   <th style={s.th}>Winston</th>
                   <th style={s.th}>Bunyan</th>
@@ -715,7 +716,7 @@ export default function KonsoleSite() {
               <thead>
                 <tr>
                   <th style={{ ...s.th, textAlign: 'left' }}></th>
-                  <th style={{ ...s.th, ...s.thHighlight }}>Konsole</th>
+                  <th style={{ ...s.th, ...s.thHighlight }}>Console</th>
                   <th style={s.th}>Pino</th>
                   <th style={s.th}>Winston</th>
                   <th style={s.th}>Bunyan</th>
@@ -741,7 +742,7 @@ export default function KonsoleSite() {
 
           <p style={{ ...s.prose, marginTop: 16, fontSize: 12, color: '#a3a3a3' }}>
             Pino, Winston, and Bunyan are Node.js only.
-            Konsole is the only structured logger that works in both browser and Node.js
+            Console is the only structured logger that works in both browser and Node.js
             with Web Worker offloading for non-blocking transport processing.
             See the <a style={{ color: '#6366f1' }} href={LINKS.docs + '/guide/performance'}>Performance Guide</a> for details.
           </p>
@@ -768,7 +769,7 @@ export default function KonsoleSite() {
         <section style={s.section}>
           <h2 style={s.sectionTitle}>Usage Examples</h2>
           <p style={s.prose}>
-            Konsole has no framework dependency — it works everywhere: React, plain HTML, and Node.js servers.
+            Console has no framework dependency — it works everywhere: React, plain HTML, and Node.js servers.
           </p>
           <div style={s.snippetTabs}>
             {USAGE_SNIPPETS.map((snip, i) => (

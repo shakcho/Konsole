@@ -1,17 +1,18 @@
-# What is Konsole?
+# What is Console?
 
-Konsole is a structured, namespaced logging library for JavaScript and TypeScript that works in both **browser** and **Node.js** environments. It delivers structured output quality with great developer experience — beautiful terminal formatting, browser DevTools styling, and a clean API.
+Console is a structured, namespaced logging library for JavaScript and TypeScript that works in both **browser** and **Node.js** environments. It delivers structured output quality with great developer experience — beautiful terminal formatting, browser DevTools styling, and a clean API.
 
 - **Structured logging** with a consistent JSON schema
 - **Namespaced logging** for organized, component-specific logs
 - **Child loggers** that inherit config and attach request-scoped context
 - **Beautiful terminal output** with ANSI colors and human-readable formatting
+- **Field redaction** — mask sensitive data before it reaches any destination
 - **Multiple transports** — HTTP, file, stream, or console
 - **Memory-efficient storage** with circular buffers
 - **Web Worker support** for background processing in browsers
 - **Node.js and browser** — works in both without any configuration
 
-## Why Konsole?
+## Why Console?
 
 Traditional `console.log` statements have several limitations:
 
@@ -22,11 +23,11 @@ Traditional `console.log` statements have several limitations:
 5. **No history** — Once a log scrolls off screen, it's gone
 6. **No backend** — You can't send logs to a server for analysis
 
-Konsole solves all of these while remaining lightweight and dependency-free.
+Console solves all of these while remaining lightweight and dependency-free.
 
 ## Comparison
 
-| Feature | console.log | Konsole |
+| Feature | console.log | Console |
 |---------|-------------|---------|
 | Namespacing | ❌ | ✅ |
 | Child loggers | ❌ | ✅ |
@@ -34,6 +35,7 @@ Konsole solves all of these while remaining lightweight and dependency-free.
 | Structured JSON output | ❌ | ✅ |
 | Pretty terminal output | ❌ | ✅ built-in |
 | Configurable timestamps | ❌ | ✅ (ISO, epoch, custom, nanosecond) |
+| Field redaction | ❌ | ✅ (dot-notation paths, inherited by children) |
 | Browser DevTools styling | ❌ | ✅ |
 | Log storage / history | ❌ | ✅ |
 | Multiple transports | ❌ | ✅ |
@@ -58,6 +60,7 @@ Konsole solves all of these while remaining lightweight and dependency-free.
 - [Namespaces & Child Loggers](/guide/namespaces) — Organizing logs and attaching context
 - [Log Levels & Output](/guide/conditional-logging) — Controlling what gets logged
 - [Timestamps](/guide/timestamps) — Format presets, custom functions, and nanosecond precision
+- [Redaction](/guide/redaction) — Masking passwords, tokens, and PII
 - [Transports](/guide/transports) — Sending logs to files, streams, and backends
 - [Browser Debugging](/guide/browser-debugging) — Production debugging tools
 - [Viewing Logs](/guide/viewing-logs) — Batch viewing and filtering

@@ -1,6 +1,6 @@
 # Timestamps
 
-Every log entry includes a timestamp. By default, Konsole uses `datetime` format — a full local date and time with millisecond precision:
+Every log entry includes a timestamp. By default, Console uses `datetime` format — a full local date and time with millisecond precision:
 
 ```
 2025-03-16 10:23:45.123  INF  [App]  Server started  port=3000

@@ -108,6 +108,7 @@ interface KonsoleOptions {
   level?: LogLevelName;
   format?: KonsoleFormat;
   timestamp?: TimestampFormat | TimestampOptions;
+  redact?: string[];
   transports?: (Transport | TransportConfig)[];
   maxLogs?: number;
   defaultBatchSize?: number;
@@ -126,6 +127,7 @@ interface KonsoleOptions {
 | `level` | `LogLevelName` | `'trace'` | Minimum level — entries below are discarded |
 | `format` | `KonsoleFormat` | `'auto'` | Output format (see below) |
 | `timestamp` | `TimestampFormat \| TimestampOptions` | `'datetime'` | Timestamp format (see below) |
+| `redact` | `string[]` | `[]` | Dot-notation field paths to mask with `'[REDACTED]'` — see [Redaction](/guide/redaction) |
 | `transports` | `(Transport \| TransportConfig)[]` | `[]` | External log destinations |
 | `maxLogs` | `number` | `10000` | Circular buffer capacity |
 | `defaultBatchSize` | `number` | `100` | Entries per `viewLogs()` call |
@@ -162,8 +164,16 @@ interface KonsoleChildOptions {
   namespace?: string;
   level?: LogLevelName;
   timestamp?: TimestampFormat | TimestampOptions;
+  redact?: string[];
 }
 ```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `namespace` | `string` | Parent's | Override namespace for this child |
+| `level` | `LogLevelName` | Parent's | Override minimum level (can only be more restrictive) |
+| `timestamp` | `TimestampFormat \| TimestampOptions` | Parent's | Override timestamp format |
+| `redact` | `string[]` | `[]` | Additional paths to redact (merged with parent's paths — child can never redact fewer) |
 
 ---
 
@@ -295,5 +305,6 @@ Public interface surfaced by `__Konsole.getLogger()` in the browser.
   enableAll(): void;
   disableAll(): void;
   setTimestamp(opts: TimestampFormat | TimestampOptions): void; // changes all loggers
+  disableRedaction(disabled: boolean): void; // browser only — bypass redaction for debugging
 }
 ```

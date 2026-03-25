@@ -1,6 +1,6 @@
 # Performance
 
-Konsole is built for production. It adds minimal overhead to your application while offering structured logging, child loggers, configurable timestamps, and flexible transports — all in a ~10 KB gzipped bundle with zero dependencies.
+Console is built for production. It adds minimal overhead to your application while offering structured logging, child loggers, configurable timestamps, and flexible transports — all in a ~10 KB gzipped bundle with zero dependencies.
 
 ## Benchmarks
 
@@ -8,7 +8,7 @@ Measured on Apple M2 Max, Node.js v23.11.0, 100K iterations per benchmark.
 
 ### Throughput (ops/sec)
 
-| Scenario | Konsole | Pino | Winston | Bunyan |
+| Scenario | Console | Pino | Winston | Bunyan |
 |---|---:|---:|---:|---:|
 | Silent / disabled | ~8M | ~7M | ~1.5M | — |
 | JSON → /dev/null | ~650K | ~470K | ~270K | ~340K |
@@ -16,11 +16,11 @@ Measured on Apple M2 Max, Node.js v23.11.0, 100K iterations per benchmark.
 | Silent (browser, with buffer) | ~4.7M | — | — | — |
 | Browser + Worker | non-blocking | — | — | — |
 
-> Pino, Winston, and Bunyan are Node.js only. Konsole is the only structured logger that runs natively in the browser with Web Worker offloading.
+> Pino, Winston, and Bunyan are Node.js only. Console is the only structured logger that runs natively in the browser with Web Worker offloading.
 
 ### Latency (p50)
 
-| Scenario | Konsole | Pino | Winston | Bunyan |
+| Scenario | Console | Pino | Winston | Bunyan |
 |---|---:|---:|---:|---:|
 | Silent | 83 ns | 83 ns | 292 ns | — |
 | JSON → stream | 1.13 µs | 1.50 µs | 1.54 µs | 2.08 µs |
@@ -28,7 +28,7 @@ Measured on Apple M2 Max, Node.js v23.11.0, 100K iterations per benchmark.
 
 ### Bundle & Install Size
 
-| | Konsole | Pino | Winston | Bunyan |
+| | Console | Pino | Winston | Bunyan |
 |---|---:|---:|---:|---:|
 | Bundle (gzip) | ~10 KB | ~32 KB | ~70 KB | ~45 KB |
 | Install size | 86 KB | 1.17 MB | 360 KB | 212 KB |
@@ -57,7 +57,7 @@ const logger = new Konsole({ namespace: 'App', buffer: true });
 
 ## Circular Buffer
 
-When `buffer` is enabled, Konsole stores up to 10,000 logs (configurable via `maxLogs`) in a circular buffer. When the limit is reached, oldest logs are automatically evicted.
+When `buffer` is enabled, Console stores up to 10,000 logs (configurable via `maxLogs`) in a circular buffer. When the limit is reached, oldest logs are automatically evicted.
 
 ```typescript
 const logger = new Konsole({
@@ -78,7 +78,7 @@ console.log(stats.memoryUsage); // "1234/5000 (24.7%)"
 
 ## Web Worker Transport
 
-This is Konsole's standout feature for browser applications. With `useWorker: true`, log storage and HTTP transport batching move to a background Web Worker. The main thread never blocks on logging — even at high volume.
+This is Console's standout feature for browser applications. With `useWorker: true`, log storage and HTTP transport batching move to a background Web Worker. The main thread never blocks on logging — even at high volume.
 
 No other structured logging library (Pino, Winston, Bunyan) works in the browser, let alone offers Worker offloading.
 
@@ -164,7 +164,7 @@ useEffect(() => {
 
 ```bash
 npm run build
-npm run benchmark                          # Konsole only
+npm run benchmark                          # Console only
 npm install --no-save pino winston bunyan  # install competitors
 npm run benchmark                          # full comparison
 npm run benchmark:size                     # bundle size analysis
