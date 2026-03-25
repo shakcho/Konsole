@@ -478,7 +478,7 @@ export default function KonsoleSite() {
     <>
       {/* Top nav */}
       <nav style={s.topNav}>
-        <span style={s.topNavBrand}>konsole<span style={{ color: '#6366f1' }}>.ts</span></span>
+        <span style={s.topNavBrand}>console<span style={{ color: '#6366f1' }}>.logger</span></span>
         <div style={s.topNavLinks}>
           <a style={s.topNavLink} href={LINKS.docs} target="_blank" rel="noreferrer">Docs</a>
           <a style={s.topNavLink} href={LINKS.github} target="_blank" rel="noreferrer">GitHub</a>
