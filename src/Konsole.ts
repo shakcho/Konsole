@@ -250,6 +250,57 @@ export class Konsole implements KonsolePublic {
     Konsole.instances.forEach((instance) => instance._rebindMethods());
   }
 
+  /**
+   * Flush and destroy all registered loggers.
+   * Returns a promise that resolves when every transport has been drained.
+   *
+   * @example
+   * ```ts
+   * process.on('SIGTERM', async () => {
+   *   await Konsole.shutdown();
+   *   process.exit(0);
+   * });
+   * ```
+   */
+  static async shutdown(): Promise<void> {
+    const instances = Array.from(Konsole.instances.values());
+    await Promise.all(instances.map((i) => i.flushTransports()));
+    await Promise.all(instances.map((i) => i.destroy()));
+  }
+
+  /** Whether shutdown hooks have already been registered (prevents double-registration). */
+  private static _hooksRegistered = false;
+
+  /**
+   * Register `SIGTERM`, `SIGINT`, and `beforeExit` handlers that automatically
+   * flush all transports before the process exits. Node.js only — no-op in browsers.
+   *
+   * Safe to call multiple times; handlers are registered at most once.
+   *
+   * @example
+   * ```ts
+   * Konsole.enableShutdownHook();
+   * ```
+   */
+  static enableShutdownHook(): void {
+    if (Konsole._hooksRegistered) return;
+    if (typeof process === 'undefined' || typeof process.on !== 'function') return;
+
+    Konsole._hooksRegistered = true;
+
+    const onShutdown = (signal: string) => {
+      Konsole.shutdown().finally(() => {
+        process.exit(signal === 'SIGTERM' ? 143 : 130);
+      });
+    };
+
+    process.on('SIGTERM', () => onShutdown('SIGTERM'));
+    process.on('SIGINT',  () => onShutdown('SIGINT'));
+    process.on('beforeExit', () => {
+      Konsole.shutdown().catch(() => {});
+    });
+  }
+
   /** Add an HTTP transport to every registered logger. */
   static addGlobalTransport(config: TransportConfig): void {
     Konsole.instances.forEach((instance) => instance.addTransport(config));

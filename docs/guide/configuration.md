@@ -324,9 +324,18 @@ const stats = logger.getStats();
 // { logCount: 1234, maxLogs: 5000, memoryUsage: "1234/5000 (24.7%)" }
 ```
 
-## Cleanup
+## Graceful Shutdown
+
+Ensure no logs are lost when the process exits:
 
 ```typescript
+// Automatic — registers SIGTERM, SIGINT, and beforeExit handlers
+Konsole.enableShutdownHook();
+
+// Or manual — flush and destroy all loggers
+await Konsole.shutdown();
+
+// Or per-logger cleanup
 await logger.destroy(); // flushes transports, stops cleanup timer, removes from registry
 ```
 

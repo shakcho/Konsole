@@ -21,7 +21,7 @@ export default defineConfig({
       { text: 'API', link: '/api/' },
       { text: 'Live Demo', link: 'https://konsole.saktichourasia.dev' },
       {
-        text: 'v4.1.0',
+        text: 'v4.2.0',
         items: [
           { text: 'Changelog', link: '/changelog' },
           { text: 'Contributing', link: '/contributing' },

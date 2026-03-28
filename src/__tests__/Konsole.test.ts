@@ -579,4 +579,48 @@ describe('Konsole', () => {
       expect(spy.entries[0].fields.password).toBe('[REDACTED]'); // redaction back on
     });
   });
+
+  // ─── Graceful Shutdown ───────────────────────────────────────────────────────
+
+  describe('shutdown', () => {
+    it('flushes and destroys all registered loggers', async () => {
+      const spy1 = new SpyTransport();
+      const spy2 = new SpyTransport();
+      const l1 = makeSilentLogger({ namespace: 'Shutdown1', transports: [spy1] });
+      const l2 = makeSilentLogger({ namespace: 'Shutdown2', transports: [spy2] });
+
+      l1.info('a');
+      l2.info('b');
+
+      expect(Konsole.getNamespaces()).toContain('Shutdown1');
+      expect(Konsole.getNamespaces()).toContain('Shutdown2');
+
+      await Konsole.shutdown();
+
+      // Both loggers should be deregistered
+      expect(Konsole.getNamespaces()).not.toContain('Shutdown1');
+      expect(Konsole.getNamespaces()).not.toContain('Shutdown2');
+    });
+
+    it('resolves cleanly when there are no registered loggers', async () => {
+      // After the afterEach cleanup there should be no loggers
+      await expect(Konsole.shutdown()).resolves.toBeUndefined();
+    });
+
+    it('enableShutdownHook does not throw in Node.js', () => {
+      expect(() => Konsole.enableShutdownHook()).not.toThrow();
+      // Reset the flag so repeated test runs work
+      (Konsole as unknown as Record<string, unknown>)['_hooksRegistered'] = false;
+    });
+
+    it('enableShutdownHook is idempotent', () => {
+      const onSpy = vi.spyOn(process, 'on');
+      Konsole.enableShutdownHook();
+      const callCount = onSpy.mock.calls.length;
+      Konsole.enableShutdownHook(); // second call — should be no-op
+      expect(onSpy.mock.calls.length).toBe(callCount);
+      onSpy.mockRestore();
+      (Konsole as unknown as Record<string, unknown>)['_hooksRegistered'] = false;
+    });
+  });
 });

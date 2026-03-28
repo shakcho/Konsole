@@ -97,6 +97,39 @@ Konsole.enableGlobalPrint(false); // Restore normal rules
 
 ---
 
+### shutdown
+
+```typescript
+static shutdown(): Promise<void>
+```
+
+Flushes and destroys all registered loggers. Returns a promise that resolves when every transport has been drained.
+
+**Example:**
+```typescript
+process.on('SIGTERM', async () => {
+  await Konsole.shutdown();
+  process.exit(0);
+});
+```
+
+---
+
+### enableShutdownHook
+
+```typescript
+static enableShutdownHook(): void
+```
+
+Registers `SIGTERM`, `SIGINT`, and `beforeExit` handlers that automatically flush all transports before the process exits. Node.js only — no-op in browsers. Safe to call multiple times; handlers are registered at most once.
+
+**Example:**
+```typescript
+Konsole.enableShutdownHook();
+```
+
+---
+
 ### addGlobalTransport
 
 ```typescript

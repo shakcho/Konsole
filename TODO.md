@@ -129,9 +129,10 @@ Goal: universal logging library (Browser + Node.js) competitive with Pino.js, wi
   - [ ] `serializers` option: `{ err: ..., req: ..., res: ... }`
   - [ ] Ship built-in `stdSerializers` for `Error`, HTTP `req`/`res`
 
-- [ ] **Graceful shutdown**
-  - [ ] `process.on('exit')` / `SIGTERM` handler to flush pending transports
-  - [ ] `logger.flush()` returns a promise that resolves when all transports are drained
+- [x] **Graceful shutdown**
+  - [x] `Konsole.shutdown()` flushes and destroys all registered loggers
+  - [x] `Konsole.enableShutdownHook()` registers `SIGTERM`/`SIGINT`/`beforeExit` handlers (Node.js only)
+  - [x] Idempotent — safe to call `enableShutdownHook()` multiple times
 
 - [ ] **`DEBUG=*` namespace filtering**
   - [ ] Support `DEBUG=konsole:*` env var pattern (like the `debug` npm package)
