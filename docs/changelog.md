@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.1.0] - 2026-03-23
+## [4.2.0] - 2026-03-28
 
 ### Added
 
@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Applied after bindings merge, before all consumers
   - Original caller objects are never mutated
   - New exports: `compileRedactPaths()`, `applyRedaction()`, `REDACTED`
+
+- **Graceful shutdown** — New static methods for clean process exit
+  - `Konsole.shutdown()` — flushes and destroys all registered loggers
+  - `Konsole.enableShutdownHook()` — registers `SIGTERM`, `SIGINT`, and `beforeExit` handlers (Node.js only, no-op in browser)
 
 - **Browser runtime redaction toggle** — `__Konsole.disableRedaction(true/false)` via `exposeToWindow()`
   - Temporarily bypass redaction in DevTools for debugging

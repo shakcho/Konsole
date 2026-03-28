@@ -52,6 +52,8 @@ import Konsole from 'konsole-logger';
 | `Konsole.exposeToWindow()` | `void` | Expose debug handle to `window.__Konsole` |
 | `Konsole.enableGlobalPrint(enabled)` | `void` | Override output for all loggers |
 | `Konsole.addGlobalTransport(config)` | `void` | Add transport to every logger |
+| `Konsole.shutdown()` | `Promise<void>` | Flush and destroy all registered loggers |
+| `Konsole.enableShutdownHook()` | `void` | Register SIGTERM/SIGINT/beforeExit handlers |
 
 ### Instance Methods
 

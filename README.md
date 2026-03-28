@@ -300,11 +300,17 @@ const logger = new Konsole({
 logger.addTransport(new FileTransport({ path: './debug.log' }));
 ```
 
-### Flush before exit (Node.js)
+### Graceful shutdown (Node.js)
+
+Flush all transports before the process exits — no logs lost in Lambda, K8s, or containers:
 
 ```typescript
+// Option 1: automatic — registers SIGTERM, SIGINT, and beforeExit handlers
+Konsole.enableShutdownHook();
+
+// Option 2: manual
 process.on('SIGTERM', async () => {
-  await logger.flushTransports();
+  await Konsole.shutdown();
   process.exit(0);
 });
 ```
@@ -355,6 +361,8 @@ new Konsole({
 | `Konsole.exposeToWindow()` | Expose `__Konsole` on `window` for browser debugging |
 | `Konsole.enableGlobalPrint(enabled)` | Override output for all loggers |
 | `Konsole.addGlobalTransport(transport)` | Add a transport to all existing loggers |
+| `Konsole.shutdown()` | Flush and destroy all registered loggers |
+| `Konsole.enableShutdownHook()` | Register SIGTERM/SIGINT/beforeExit handlers (Node.js only) |
 
 ## Browser Debugging
 
